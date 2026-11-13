@@ -16,6 +16,7 @@ from typing import Any
 
 from sqlalchemy import or_, select
 
+from packages.connectors.scientific.crossref import CrossrefConnector
 from packages.connectors.scientific.openalex import OpenAlexConnector
 from packages.connectors.scientific.schemas import NormalizedPublication
 from packages.core.database import Base, get_session_local
@@ -23,13 +24,34 @@ from packages.core.models import Publication
 
 
 class PublicationService:
+    """Multi-source publication service.
+
+    Connectors are registered by source name (e.g. ``openalex``, ``crossref``).
+    ``search_and_store`` fetches from the selected source, normalizes, and
+    upserts records keyed by (source_name, source_id).
+    """
+
     def __init__(
         self,
-        connector: OpenAlexConnector | None = None,
+        connectors: dict[str, Any] | None = None,
+        default_source: str = "openalex",
         session: Any = None,
     ) -> None:
-        self.connector = connector or OpenAlexConnector()
+        self.connectors = connectors or {
+            "openalex": OpenAlexConnector(),
+            "crossref": CrossrefConnector(),
+        }
+        self.default_source = default_source
         self._session = session
+
+    def _get_connector(self, source: str) -> Any:
+        connector = self.connectors.get(source)
+        if connector is None:
+            available = ", ".join(sorted(self.connectors))
+            raise ValueError(
+                f"Unknown source '{source}'. Available: {available}"
+            )
+        return connector
 
     def _get_db(self):
         if self._session is not None:
@@ -71,14 +93,18 @@ class PublicationService:
         db.add(existing)
         return existing
 
-    async def search_and_store(self, query: str, limit: int = 10) -> list[Publication]:
-        works = await self.connector.search(query, limit=limit)
+    async def search_and_store(
+        self, query: str, limit: int = 10, source: str | None = None
+    ) -> list[Publication]:
+        source = source or self.default_source
+        connector = self._get_connector(source)
+        works = await connector.search(query, limit=limit)
         db = self._get_db()
         own_session = self._session is None
         try:
             stored: list[Publication] = []
             for work in works:
-                normalized = self.connector.normalize(work)
+                normalized = connector.normalize(work)
                 record = self._upsert(db, normalized)
                 stored.append(record)
             db.commit()

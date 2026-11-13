@@ -27,6 +27,7 @@ class PublicationOut(BaseModel):
 class SearchRequest(BaseModel):
     q: str
     limit: int = 10
+    source: str | None = None
 
 
 class SearchResponse(BaseModel):

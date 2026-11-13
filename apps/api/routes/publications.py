@@ -12,15 +12,20 @@ service = PublicationService()
 
 @router.post("/search", response_model=SearchResponse)
 async def search_publications(request: SearchRequest):
-    """Search OpenAlex for publications, normalize them, and store locally.
+    """Search publications from a scientific source, normalize them, and store locally.
+
+    Default source is OpenAlex. Use ``source`` to select another connector
+    (e.g. ``crossref``).
 
     Returns the stored records so callers can open original sources via
     ``source_url`` and inspect provenance (source_name / source_id).
     """
-    stored = await service.search_and_store(request.q, limit=request.limit)
+    stored = await service.search_and_store(
+        request.q, limit=request.limit, source=request.source
+    )
     return SearchResponse(
         query=request.q,
-        source="openalex",
+        source=request.source or service.default_source,
         count=len(stored),
         results=[PublicationOut.model_validate(record) for record in stored],
     )

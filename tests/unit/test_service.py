@@ -77,7 +77,7 @@ FIXTURE_WORKS = [
 @pytest.mark.asyncio
 async def test_search_and_store_inserts(svc, session):
     connector = FakeConnector(FIXTURE_WORKS)
-    svc.connector = connector
+    svc.connectors["openalex"] = connector
     stored = await svc.search_and_store("climate", limit=2)
 
     assert len(stored) == 2
@@ -91,7 +91,7 @@ async def test_search_and_store_inserts(svc, session):
 @pytest.mark.asyncio
 async def test_search_and_store_upsert_dedupes(svc, session):
     connector = FakeConnector(FIXTURE_WORKS)
-    svc.connector = connector
+    svc.connectors["openalex"] = connector
     await svc.search_and_store("climate", limit=2)
     # Run again with updated title for W111
     updated = [
@@ -99,7 +99,7 @@ async def test_search_and_store_upsert_dedupes(svc, session):
         FIXTURE_WORKS[1],
     ]
     connector2 = FakeConnector(updated)
-    svc.connector = connector2
+    svc.connectors["openalex"] = connector2
     stored = await svc.search_and_store("climate", limit=2)
 
     assert len(stored) == 2

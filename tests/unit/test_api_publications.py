@@ -46,7 +46,7 @@ def api_client(tmp_path):
     Base.metadata.create_all(engine)
     session = Session(engine)
     service._session = session
-    service.connector = FakeConnector()
+    service.connectors["openalex"] = FakeConnector()
     yield TestClient(create_app())
     session.close()
 
@@ -89,3 +89,51 @@ def test_list_endpoint_returns_stored(api_client):
     assert data["source"] == "local"
     assert data["count"] == 1
     assert data["results"][0]["title"] == "Already Stored Paper"
+
+
+class FakeCrossrefConnector:
+    async def search(self, query, limit=10):
+        return [
+            {
+                "DOI": "10.1000/crossref.2024.002",
+                "title": ["Crossref Test Paper"],
+                "author": [{"given": "C", "family": "Researcher"}],
+                "published": {"date-parts": [[2024, 2, 1]]},
+                "abstract": "<p>Crossref abstract here.</p>",
+                "URL": "https://doi.org/10.1000/crossref.2024.002",
+                "license": [{"URL": "https://creativecommons.org/licenses/by/4.0/"}],
+            }
+        ][:limit]
+
+    def normalize(self, item):
+        return NormalizedPublication(
+            source_name="crossref",
+            source_id=item["DOI"],
+            title=item["title"][0],
+            abstract="Crossref abstract here.",
+            authors=[{"name": "C Researcher"}],
+            publication_date=None,
+            source_url=item["URL"],
+            license="https://creativecommons.org/licenses/by/4.0/",
+        )
+
+
+def test_search_endpoint_crossref_source(api_client):
+    service.connectors["crossref"] = FakeCrossrefConnector()
+    response = api_client.post(
+        "/api/v1/publications/search",
+        json={"q": "climate", "limit": 5, "source": "crossref"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["query"] == "climate"
+    assert data["source"] == "crossref"
+    assert data["count"] == 1
+    record = data["results"][0]
+    assert record["title"] == "Crossref Test Paper"
+    assert record["source_name"] == "crossref"
+    assert record["source_id"] == "10.1000/crossref.2024.002"
+    assert record["source_url"] == "https://doi.org/10.1000/crossref.2024.002"
+    assert record["abstract"] == "Crossref abstract here."
+    assert record["license"] == "https://creativecommons.org/licenses/by/4.0/"
+
