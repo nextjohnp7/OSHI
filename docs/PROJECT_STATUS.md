@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 0 — Foundation and Reconnaissance (Sprint 3 — Document Intelligence, DONE)
+PHASE 0 — Foundation and Reconnaissance (Sprint 6 — Research Agent + arXiv/PubMed integration, DONE)
 
 ## Completed
 
@@ -11,10 +11,12 @@ PHASE 0 — Foundation and Reconnaissance (Sprint 3 — Document Intelligence, D
 - `pyproject.toml`, `.env.example`, `.gitignore`
 - `packages/core/config.py` — Pydantic Settings (DATABASE_URL, LLM provider, etc.)
 - `packages/core/database.py` — SQLAlchemy engine + session factory + `get_db()`
-- `packages/core/models.py` — `Publication` model with provenance fields
+- `packages/core/models.py` — `Publication`, `Organization`, `User`, `OrganizationMember`, `APIKey` models (provenance + multi-tenant auth)
 - `packages/core/logging.py` — structured logging (JSON/plain)
 - `alembic.ini` + `alembic/env.py` — configured to read DATABASE_URL from OSHI settings
 - Migration `8054612ce976` — create `publications` table (applied to SQLite dev DB)
+- Migration `e065afc05779` — create `documents` and `document_chunks` tables
+- Migration `9d3c5ad41c6f` — auth tables: `organizations`, `users`, `organization_members`, `api_keys`
 - `packages/connectors/scientific/openalex.py` — OpenAlex connector (search + normalize) — **live API verified**
 - `packages/connectors/scientific/crossref.py` — Crossref connector (search + normalize) — **live API verified**
 - `packages/connectors/scientific/schemas.py` — `NormalizedPublication` schema
@@ -36,11 +38,11 @@ None.
 
 ## Tests Executed
 
-- `uv run pytest tests/ -v` — **46 passed, 0 failed**
+- `uv run pytest tests/ -v` — **64 passed, 0 failed**
 
 ## Test Results
 
-All 46 tests pass:
+All 64 tests pass:
 - test_foundation.py: 2 passed
 - test_openalex_connector.py: 5 passed
 - test_crossref_connector.py: 5 passed
@@ -50,6 +52,10 @@ All 46 tests pass:
 - test_embeddings.py: 12 passed
 - test_retrieval.py: 3 passed
 - test_document_service.py: 7 passed
+- test_research_agent.py: 4 passed
+- test_arxiv_connector.py: 5 passed
+- test_pubmed_connector.py: 5 passed
+- test_auth_models.py: 4 passed
 
 Live API verification:
 - OpenAlex: search + normalize + store + list (verified earlier)
@@ -73,10 +79,13 @@ None.
 
 ## Next Tasks
 
-- Sprint 4: Research agent workflow (publication discovery, evidence retrieval, report generation)
+- Add API authentication middleware (JWT/API key validation) on protected routes — Part 8, Part 10
+- Add `docs/research/disaster-source-research.md` and `docs/architecture/database-design.md`
+- Add `docs/SECURITY_REVIEW.md` and `docs/TESTING_STRATEGY.md`
+- Sprint 7: Frontend MVP (dashboard, publication search, document reader) — optional
 - Keep `docs/PROJECT_STATUS.md` updated each session
 
-## Files Changed (Sprint 3 + Research)
+## Files Changed (Sprint 3 + Research + Auth + Docker)
 
 - `packages/document_processing/__init__.py` (new)
 - `packages/document_processing/models.py` (new)
@@ -93,14 +102,41 @@ None.
 - `tests/unit/test_embeddings.py` (new, upgraded)
 - `tests/unit/test_retrieval.py` (new)
 - `tests/unit/test_document_service.py` (new)
+- `packages/core/models.py` (auth models added)
+- `packages/core/config.py` (connector credential settings added)
+- `packages/connectors/scientific/arxiv.py` (new)
+- `packages/connectors/scientific/pubmed.py` (new)
+- `packages/agents/research/__init__.py` (new)
+- `packages/agents/research/graph.py` (new)
+- `packages/agents/research/nodes.py` (new)
+- `packages/agents/research/state.py` (new)
+- `apps/api/routes/research.py` (new)
+- `tests/unit/test_arxiv_connector.py` (new)
+- `tests/unit/test_pubmed_connector.py` (new)
+- `tests/unit/test_research_agent.py` (new)
+- `tests/unit/test_auth_models.py` (new)
+- `Dockerfile` (new)
+- `docker-compose.yml` (new)
+- `.env.example` (connector credential variables added)
 - `docs/PROJECT_STATUS.md` (updated)
 - `docs/research/data-source-research.md` (new)
 - `docs/research/technology-evaluation.md` (new)
+- `docs/research/repository-reconnaissance.md` (new)
 
 ## Commit References
 
 - `4368898` — feat(backend): add structured logging and API error handling
-- New Sprint 2 commit pending push
+- `8558b34` — feat(sprint2): add Crossref connector and multi-source publication service
+- `e10e050` — feat(sprint3): document intelligence - ingest, chunk, embed, semantic search
+- `e6c2d5a` — chore(build): remove temp hermes file and ignore .hermes-tmp
+- `cdb8e60` — feat(embedding): upgrade to sentence-transformers with hashing-trick fallback
+- `5324c65` — docs(research): add data source research and technology evaluation
+- `8546862` — docs: rewrite README.md in formal English
+- `191ba52` — feat(sprint4): research agent workflow - LangGraph publication discovery, evidence retrieval, report generation
+- `bd80dcb` — feat(sprint5): pgvector production vector search, arXiv and PubMed connectors
+- `2e51ee3` — feat(sprint6): integrate arxiv and pubmed into research agent discovery
+- `09ab1ff` — feat(docker): containerize for production with PostgreSQL + pgvector
+- `7d4d0f5` — feat(auth): API key / mailto support for all scientific connectors
 
 ## Risks
 
