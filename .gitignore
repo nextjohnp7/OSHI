@@ -40,3 +40,4 @@ oshi.egg-info/
 *.egg-info/
 build/
 dist/
+.hermes-tmp.*
