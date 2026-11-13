@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 0 — Foundation and Reconnaissance (Sprint 2 — Scientific Source Integration, DONE)
+PHASE 0 — Foundation and Reconnaissance (Sprint 3 — Document Intelligence, DONE)
 
 ## Completed
 
@@ -36,16 +36,20 @@ None.
 
 ## Tests Executed
 
-- `uv run pytest tests/ -v` — **18 passed, 0 failed**
+- `uv run pytest tests/ -v` — **46 passed, 0 failed**
 
 ## Test Results
 
-All 18 tests pass:
+All 46 tests pass:
 - test_foundation.py: 2 passed
 - test_openalex_connector.py: 5 passed
 - test_crossref_connector.py: 5 passed
 - test_service.py: 3 passed
 - test_api_publications.py: 3 passed
+- test_chunking.py: 5 passed
+- test_embeddings.py: 12 passed
+- test_retrieval.py: 3 passed
+- test_document_service.py: 7 passed
 
 Live API verification:
 - OpenAlex: search + normalize + store + list (verified earlier)
@@ -69,19 +73,29 @@ None.
 
 ## Next Tasks
 
-- Sprint 3: Document intelligence (PDF import, text extraction, chunking, embeddings, vector retrieval)
-- Create `docs/research/data-source-research.md` and `docs/research/technology-evaluation.md`
+- Sprint 4: Research agent workflow (publication discovery, evidence retrieval, report generation)
 - Keep `docs/PROJECT_STATUS.md` updated each session
 
-## Files Changed (Sprint 2)
+## Files Changed (Sprint 3 + Research)
 
-- `packages/connectors/scientific/crossref.py` (new)
-- `tests/unit/test_crossref_connector.py` (new)
-- `tests/unit/test_api_publications.py` (added Crossref API test)
-- `apps/api/service.py` (multi-source support)
-- `apps/api/schemas.py` (SearchRequest.source field)
-- `apps/api/routes/publications.py` (source param on /search)
+- `packages/document_processing/__init__.py` (new)
+- `packages/document_processing/models.py` (new)
+- `packages/document_processing/chunking.py` (new)
+- `packages/document_processing/embeddings.py` (upgraded: sentence-transformers + hashing fallback)
+- `packages/document_processing/retrieval.py` (new)
+- `packages/document_processing/service.py` (new)
+- `apps/api/routes/documents.py` (new)
+- `apps/api/main.py` (documents router wired)
+- `apps/api/schemas.py` (document schemas added)
+- `alembic/env.py` (document models registered)
+- `alembic/versions/e065afc05779_create_documents_and_document_chunks_.py` (new migration)
+- `tests/unit/test_chunking.py` (new)
+- `tests/unit/test_embeddings.py` (new, upgraded)
+- `tests/unit/test_retrieval.py` (new)
+- `tests/unit/test_document_service.py` (new)
 - `docs/PROJECT_STATUS.md` (updated)
+- `docs/research/data-source-research.md` (new)
+- `docs/research/technology-evaluation.md` (new)
 
 ## Commit References
 
