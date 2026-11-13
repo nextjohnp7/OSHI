@@ -9,12 +9,14 @@ Foundation endpoints:
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from apps.api.errors import register_error_handlers
+from apps.api.routes.auth import router as auth_router
 from apps.api.routes.documents import router as documents_router
 from apps.api.routes.publications import router as publications_router
 from apps.api.routes.research import router as research_router
+from packages.core.auth import require_api_key
 from packages.core.config import get_settings
 from packages.core.database import get_engine
 from packages.core.logging import configure_logging, get_logger
@@ -30,9 +32,19 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, debug=settings.debug)
 
     register_error_handlers(app)
-    app.include_router(publications_router)
-    app.include_router(documents_router)
-    app.include_router(research_router)
+    app.include_router(auth_router)
+    app.include_router(
+        publications_router,
+        dependencies=[Depends(require_api_key)],
+    )
+    app.include_router(
+        documents_router,
+        dependencies=[Depends(require_api_key)],
+    )
+    app.include_router(
+        research_router,
+        dependencies=[Depends(require_api_key)],
+    )
 
     @app.get("/health", response_model=dict)
     def health():

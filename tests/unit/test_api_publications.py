@@ -47,15 +47,44 @@ def api_client(tmp_path):
     session = Session(engine)
     service._session = session
     service.connectors["openalex"] = FakeConnector()
-    yield TestClient(create_app())
+
+    # Point the app at the same temp database so HTTP routes share state.
+    import os
+    from packages.core.config import get_settings
+
+    os.environ["DATABASE_URL"] = f"sqlite:///{db_file}"
+    get_settings.cache_clear()
+
+    client = TestClient(create_app())
+
+    # Bootstrap a user + API key so protected routes can be called.
+    bootstrap_resp = client.post(
+        "/api/v1/auth/bootstrap",
+        params={"email": "tester@example.com", "name": "Tester"},
+    )
+    assert bootstrap_resp.status_code == 200, bootstrap_resp.text
+    api_key = bootstrap_resp.json()["api_key"]
+
+    yield client, api_key
+
     session.close()
+    get_settings.cache_clear()
+    os.environ.pop("DATABASE_URL", None)
+    try:
+        os.unlink(db_file)
+    except OSError:
+        pass
 
 
 def test_search_endpoint_returns_stored_records(api_client):
-    response = api_client.post(
-        "/api/v1/publications/search", json={"q": "climate", "limit": 5}
+    client, api_key = api_client
+    headers = {"Authorization": f"Bearer {api_key}"}
+    response = client.post(
+        "/api/v1/publications/search",
+        json={"q": "climate", "limit": 5},
+        headers=headers,
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert data["query"] == "climate"
     assert data["source"] == "openalex"
@@ -69,6 +98,8 @@ def test_search_endpoint_returns_stored_records(api_client):
 
 
 def test_list_endpoint_returns_stored(api_client):
+    client, api_key = api_client
+    headers = {"Authorization": f"Bearer {api_key}"}
     # Insert directly into the injected session
     session = service._session
     session.add(
@@ -83,8 +114,11 @@ def test_list_endpoint_returns_stored(api_client):
     )
     session.commit()
 
-    response = api_client.get("/api/v1/publications?q=stored")
-    assert response.status_code == 200
+    response = client.get(
+        "/api/v1/publications?q=stored",
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
     data = response.json()
     assert data["source"] == "local"
     assert data["count"] == 1
@@ -119,12 +153,15 @@ class FakeCrossrefConnector:
 
 
 def test_search_endpoint_crossref_source(api_client):
+    client, api_key = api_client
+    headers = {"Authorization": f"Bearer {api_key}"}
     service.connectors["crossref"] = FakeCrossrefConnector()
-    response = api_client.post(
+    response = client.post(
         "/api/v1/publications/search",
         json={"q": "climate", "limit": 5, "source": "crossref"},
+        headers=headers,
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert data["query"] == "climate"
     assert data["source"] == "crossref"
