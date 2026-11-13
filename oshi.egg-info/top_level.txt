@@ -1,6 +1,0 @@
-apps
-docs
-infrastructure
-packages
-scripts
-tests

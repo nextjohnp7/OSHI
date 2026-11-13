@@ -34,3 +34,9 @@ htmlcov/
 
 # alembic
 alembic/versions
+
+# Build artifacts
+oshi.egg-info/
+*.egg-info/
+build/
+dist/
