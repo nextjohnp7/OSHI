@@ -16,8 +16,10 @@ from typing import Any
 
 from sqlalchemy import or_, select
 
+from packages.connectors.scientific.arxiv import ArxivConnector
 from packages.connectors.scientific.crossref import CrossrefConnector
 from packages.connectors.scientific.openalex import OpenAlexConnector
+from packages.connectors.scientific.pubmed import PubMedConnector
 from packages.connectors.scientific.schemas import NormalizedPublication
 from packages.core.database import Base, get_session_local
 from packages.core.models import Publication
@@ -40,6 +42,8 @@ class PublicationService:
         self.connectors = connectors or {
             "openalex": OpenAlexConnector(),
             "crossref": CrossrefConnector(),
+            "arxiv": ArxivConnector(),
+            "pubmed": PubMedConnector(),
         }
         self.default_source = default_source
         self._session = session
