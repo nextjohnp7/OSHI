@@ -39,8 +39,8 @@ async def discover_publications(state: ResearchState) -> dict[str, Any]:
     service = PublicationService()
     all_publications: list[PublicationResult] = []
 
-    # Search both OpenAlex and Crossref
-    for source in ("openalex", "crossref"):
+    # Search OpenAlex, Crossref, arXiv, and PubMed
+    for source in ("openalex", "crossref", "arxiv", "pubmed"):
         try:
             stored = await service.search_and_store(
                 query=query,
@@ -169,8 +169,8 @@ def generate_report(state: ResearchState) -> dict[str, Any]:
     lines.append("")
     lines.append(
         f"This report presents findings from {len(publications)} publications "
-        f"discovered across OpenAlex and Crossref, with {len(evidence)} evidence "
-        f"snippets extracted for query: '{query}'."
+        f"discovered across OpenAlex, Crossref, arXiv, and PubMed, with "
+        f"{len(evidence)} evidence snippets extracted for query: '{query}'."
     )
     lines.append("")
 
