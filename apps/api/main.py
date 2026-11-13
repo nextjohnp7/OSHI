@@ -7,23 +7,33 @@ Foundation endpoints:
 - GET /api/v1/publications/{id} — get a stored publication.
 """
 
+import logging
+
 from fastapi import FastAPI
 
+from apps.api.errors import register_error_handlers
 from apps.api.routes.publications import router as publications_router
 from packages.core.config import get_settings
 from packages.core.database import get_engine
+from packages.core.logging import configure_logging, get_logger
 from sqlalchemy import text
+
+
+logger = get_logger(__name__)
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(log_level="DEBUG" if settings.debug else "INFO")
     app = FastAPI(title=settings.app_name, debug=settings.debug)
 
+    register_error_handlers(app)
     app.include_router(publications_router)
 
     @app.get("/health", response_model=dict)
     def health():
         """Return service status and database connectivity."""
+        logger.debug("health check requested")
         db_ok = False
         db_error = None
         try:
@@ -33,6 +43,7 @@ def create_app() -> FastAPI:
             db_ok = True
         except Exception as exc:  # noqa: BLE001 — report connectivity failure
             db_error = str(exc)
+            logger.error("health check database failure: %s", exc)
 
         return {
             "status": "ok" if db_ok else "degraded",
