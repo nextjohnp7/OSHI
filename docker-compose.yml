@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: oshi_postgres
+    environment:
+      POSTGRES_USER: oshi
+      POSTGRES_PASSWORD: oshi_dev_password
+      POSTGRES_DB: oshi_prod
+    ports:
+      - "5432:5432"
+    volumes:
+      - oshi_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oshi -d oshi_prod"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: oshi_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://oshi:oshi_dev_password@postgres:5432/oshi_prod
+      APP_NAME: OSHI
+      APP_ENV: production
+      DEBUG: "false"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  oshi_postgres_data:
