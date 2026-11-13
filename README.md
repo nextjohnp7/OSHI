@@ -1,83 +1,83 @@
 # OSHI — Open Science & Humanitarian Intelligence Infrastructure
 
-Platform open source berbasis AI untuk membuat pengetahuan ilmiah lebih mudah diakses, diverifikasi, dan diaplikasikan dalam penyelesaian masalah kemanusiaan terpenting.
+An open-source AI platform designed to make scientific knowledge more accessible, verifiable, and actionable for solving humanity's most important problems.
 
-Dibangun dengan **FastAPI**, **SQLAlchemy**, **Alembic**, **LangChain**, dan **LangGraph**.
+Built with **FastAPI**, **SQLAlchemy**, **Alembic**, **LangChain**, and **LangGraph**.
 
-## Fitur Utama
+## Key Features
 
-- **Publikasi Ilmiah:** Cari dan simpan publikasi dari OpenAlex dan Crossref (dedupe lintas sumber).
-- **Document Intelligence:** Impor dokumen, potong teks (chunking), buat embedding, dan cari vektor (semantic search).
-- **REST API:** Endpoint lengkap untuk publikasi dan dokumen (ingest, list, detail, search).
-- **Database:** SQLite untuk development, PostgreSQL untuk production (via `DATABASE_URL`).
-- **Migrasi:** Alembic untuk schema versioning.
+- **Scientific Publications:** Search and store publications from OpenAlex and Crossref with cross-source deduplication.
+- **Document Intelligence:** Ingest documents, perform text chunking, generate embeddings, and execute vector-based semantic search.
+- **REST API:** Complete endpoints for publications and documents (ingest, list, detail, search).
+- **Database:** SQLite for development, PostgreSQL for production (via `DATABASE_URL`).
+- **Migrations:** Alembic for schema versioning.
 
 ## Quick Start
 
 ```bash
-# Clone repo
+# Clone the repository
 git clone https://github.com/nextjohnp7/OSHI.git
 cd OSHI
 
-# Buat dan aktifkan venv
+# Create and activate the virtual environment
 uv sync
 
-# Jalankan server
+# Run the server
 uv run uvicorn apps.api.main:app --reload
 
-# Buka dokumentasi API
+# Open the API documentation
 # http://localhost:8000/docs
 ```
 
-## Endpoint Ringkasan
+## API Endpoints Summary
 
-| Method | Path | Deskripsi |
-|--------|------|-----------|
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | `/health` | Health check |
-| POST | `/api/v1/publications/search` | Cari publikasi (parameter: `q`, `source`) |
-| GET | `/api/v1/publications/` | Daftar publikasi |
-| GET | `/api/v1/publications/{id}` | Detail publikasi |
-| POST | `/api/v1/documents/ingest` | Impor dokumen baru |
-| GET | `/api/v1/documents/` | Daftar dokumen |
-| GET | `/api/v1/documents/{id}` | Detail dokumen |
-| GET | `/api/v1/documents/{id}/chunks` | Daftar chunk dokumen |
-| POST | `/api/v1/documents/search` | Pencarian vektor (semantic search) |
+| POST | `/api/v1/publications/search` | Search publications (parameters: `q`, `source`) |
+| GET | `/api/v1/publications/` | List publications |
+| GET | `/api/v1/publications/{id}` | Get publication details |
+| POST | `/api/v1/documents/ingest` | Ingest a new document |
+| GET | `/api/v1/documents/` | List documents |
+| GET | `/api/v1/documents/{id}` | Get document details |
+| GET | `/api/v1/documents/{id}/chunks` | List document chunks |
+| POST | `/api/v1/documents/search` | Vector search (semantic search) |
 
-## Tes
+## Running Tests
 
 ```bash
 uv run pytest tests/
 ```
 
-Hasil terbaru: **46 passed, 0 failed**.
+Latest result: **46 passed, 0 failed**.
 
-## Struktur Direktori
+## Project Structure
 
 ```
 OSHI/
-├── apps/api/           # FastAPI aplikasi (routes, schemas, service, errors)
-├── packages/core/      # Config, database, models, logging
-├── packages/connectors/scientific/  # OpenAlex, Crossref connectors
+├── apps/api/               # FastAPI application (routes, schemas, service, errors)
+├── packages/core/          # Configuration, database, models, logging
+├── packages/connectors/scientific/  # OpenAlex and Crossref connectors
 ├── packages/document_processing/    # Models, chunking, embeddings, retrieval, service
-├── tests/unit/         # Unit tests (semua tanpa jaringan)
-├── alembic/            # Database migration
-├── docs/               # Dokumentasi arsitektur dan research
-│   ├── adr/            # Architecture Decision Records
-│   ├── architecture/   # System architecture
-│   └── research/       # Data source research & technology evaluation
-├── pyproject.toml      # Dependensi & konfigurasi proyek
-├── alembic.ini         # Konfigurasi Alembic
-└── .env.example        # Contoh variabel lingkungan
+├── tests/unit/             # Unit tests (no network required)
+├── alembic/                # Database migrations
+├── docs/                   # Documentation (architecture and research)
+│   ├── adr/                # Architecture Decision Records
+│   ├── architecture/       # System architecture
+│   └── research/           # Data source research and technology evaluation
+├── pyproject.toml          # Project dependencies and configuration
+├── alembic.ini             # Alembic configuration
+└── .env.example            # Example environment variables
 ```
 
-## Dokumentasi
+## Documentation
 
-- [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) — Status proyek dan roadmap
-- [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md) — Arsitektur sistem
+- [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) — Project status and roadmap
+- [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md) — System architecture
 - [`docs/adr/`](docs/adr/) — Architecture Decision Records
-- [`docs/research/data-source-research.md`](docs/research/data-source-research.md) — Penelitian sumber data
-- [`docs/research/technology-evaluation.md`](docs/research/technology-evaluation.md) — Evaluasi teknologi
+- [`docs/research/data-source-research.md`](docs/research/data-source-research.md) — Data source research
+- [`docs/research/technology-evaluation.md`](docs/research/technology-evaluation.md) — Technology evaluation
 
-## Lisensi
+## License
 
-Apache-2.0 untuk perangkat lunak asli. Seluruh lisensi pihak ketiga, hak data, dan persyaratan atribusi tetap dilestarikan.
+Apache-2.0 for original software. All third-party licenses, data rights, and attribution requirements are preserved.
