@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from packages.core.config import get_settings
 from packages.core.database import Base
 import packages.core.models  # noqa: F401  register models with Base.metadata
+import packages.document_processing.models  # noqa: F401  register document models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

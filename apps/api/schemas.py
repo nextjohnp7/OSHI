@@ -43,3 +43,56 @@ class HealthOut(BaseModel):
     env: str
     database: str
     database_error: str | None = None
+
+
+# --- Document schemas (Sprint 3) ---
+
+
+class DocumentOut(BaseModel):
+    id: UUID
+    source_name: str
+    source_id: str
+    title: str
+    source_url: str | None = None
+    content_hash: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DocumentChunkOut(BaseModel):
+    id: UUID
+    document_id: UUID
+    chunk_index: int
+    text: str
+    similarity: float | None = None
+    document_title: str | None = None
+    document_source_name: str | None = None
+    document_source_id: str | None = None
+    document_source_url: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class DocumentIngestRequest(BaseModel):
+    text: str
+    source_name: str
+    source_id: str
+    title: str
+    source_url: str | None = None
+    chunk_size: int = 500
+    overlap: int = 50
+
+
+class DocumentSearchRequest(BaseModel):
+    q: str
+    top_k: int = 5
+    source_name: str | None = None
+
+
+class DocumentSearchResponse(BaseModel):
+    query: str
+    count: int
+    results: list[DocumentChunkOut]
+
