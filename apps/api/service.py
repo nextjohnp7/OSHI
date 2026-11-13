@@ -21,6 +21,7 @@ from packages.connectors.scientific.crossref import CrossrefConnector
 from packages.connectors.scientific.openalex import OpenAlexConnector
 from packages.connectors.scientific.pubmed import PubMedConnector
 from packages.connectors.scientific.schemas import NormalizedPublication
+from packages.core.config import get_settings
 from packages.core.database import Base, get_session_local
 from packages.core.models import Publication
 
@@ -39,11 +40,12 @@ class PublicationService:
         default_source: str = "openalex",
         session: Any = None,
     ) -> None:
+        settings = get_settings()
         self.connectors = connectors or {
-            "openalex": OpenAlexConnector(),
-            "crossref": CrossrefConnector(),
-            "arxiv": ArxivConnector(),
-            "pubmed": PubMedConnector(),
+            "openalex": OpenAlexConnector(mailto=settings.openalex_mailto),
+            "crossref": CrossrefConnector(mailto=settings.crossref_mailto),
+            "arxiv": ArxivConnector(mailto=settings.arxiv_mailto),
+            "pubmed": PubMedConnector(api_key=settings.pubmed_api_key),
         }
         self.default_source = default_source
         self._session = session

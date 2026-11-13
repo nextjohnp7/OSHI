@@ -87,11 +87,16 @@ def _content_hash(normalized: dict[str, Any]) -> str:
 
 
 class PubMedConnector:
-    """Thin client over the Europe PMC REST search endpoint."""
+    """Thin client over the Europe PMC REST search endpoint.
+
+    Supports an optional NCBI ``api_key`` for higher rate limits
+    (https://www.ncbi.nlm.nih.gov/books/NBK25499/).
+    """
 
     base_url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 
-    def __init__(self, timeout: float = 30.0) -> None:
+    def __init__(self, api_key: str | None = None, timeout: float = 30.0) -> None:
+        self.api_key = api_key
         self.timeout = timeout
 
     async def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
@@ -102,6 +107,8 @@ class PubMedConnector:
             "page": 1,
             "resultType": "core",
         }
+        if self.api_key:
+            params["api_key"] = self.api_key
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(self.base_url, params=params)

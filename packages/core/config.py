@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o-mini"
     openai_api_key: str | None = None
 
+    # Scientific source connector credentials (mailto / API keys for higher rate limits)
+    openalex_mailto: str | None = None
+    crossref_mailto: str | None = None
+    pubmed_api_key: str | None = None
+    arxiv_mailto: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

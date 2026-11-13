@@ -54,11 +54,16 @@ def _content_hash(normalized: dict[str, Any]) -> str:
 
 
 class ArxivConnector:
-    """Thin client over the arXiv API query endpoint."""
+    """Thin client over the arXiv API query endpoint.
+
+    Supports an optional ``mailto`` parameter for the polite pool
+    (https://info.arxiv.org/help/api/index.html).
+    """
 
     base_url = "https://export.arxiv.org/api/query"
 
-    def __init__(self, timeout: float = 30.0) -> None:
+    def __init__(self, mailto: str | None = None, timeout: float = 30.0) -> None:
+        self.mailto = mailto
         self.timeout = timeout
 
     async def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
@@ -67,6 +72,8 @@ class ArxivConnector:
             "start": 0,
             "max_results": max(1, min(limit, 100)),
         }
+        if self.mailto:
+            params["mailto"] = self.mailto
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(self.base_url, params=params)
