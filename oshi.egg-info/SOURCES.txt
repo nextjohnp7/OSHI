@@ -1,0 +1,6 @@
+pyproject.toml
+oshi.egg-info/PKG-INFO
+oshi.egg-info/SOURCES.txt
+oshi.egg-info/dependency_links.txt
+oshi.egg-info/requires.txt
+oshi.egg-info/top_level.txt
