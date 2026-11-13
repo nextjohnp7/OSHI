@@ -96,3 +96,45 @@ class DocumentSearchResponse(BaseModel):
     count: int
     results: list[DocumentChunkOut]
 
+
+# --- Research Agent schemas (Sprint 4) ---
+
+
+class ResearchRunRequest(BaseModel):
+    query: str
+    topic: str | None = None
+    crisis_context: str | None = None
+    max_publications: int = 10
+    max_evidence_per_publication: int = 3
+
+
+class ResearchPublicationOut(BaseModel):
+    id: str
+    title: str
+    authors: list[str]
+    abstract: str
+    source: str
+    url: str
+    published_date: str | None = None
+    relevance_score: float
+
+
+class ResearchEvidenceOut(BaseModel):
+    publication_id: str
+    publication_title: str
+    quote: str
+    relevance_to_query: float
+
+
+class ResearchRunResponse(BaseModel):
+    run_id: str
+    status: str
+    query: str
+    topic: str
+    crisis_context: str | None = None
+    publications: list[ResearchPublicationOut]
+    evidence: list[ResearchEvidenceOut]
+    report: str | None = None
+    error: str | None = None
+
+
