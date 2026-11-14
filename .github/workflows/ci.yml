@@ -36,3 +36,11 @@ jobs:
       - name: Run tests
         run: |
           uv run pytest tests/ -v
+
+      - name: Run lint (ruff check)
+        run: |
+          uv run ruff check
+
+      - name: Run format check (ruff format)
+        run: |
+          uv run ruff format --check

@@ -10,7 +10,15 @@ router = APIRouter(prefix="/api/v1/publications", tags=["publications"])
 service = PublicationService()
 
 
-@router.post("/search", response_model=SearchResponse)
+@router.post(
+    "/search",
+    response_model=SearchResponse,
+    summary="Search and store publications",
+    description="Search publications from a scientific source (OpenAlex, Crossref, arXiv, or PubMed), "
+    "normalize them, and store locally. Default source is OpenAlex. Use ``source`` to select "
+    "another connector. Returns the stored records so callers can open original sources via "
+    "``source_url`` and inspect provenance (source_name / source_id).",
+)
 async def search_publications(request: SearchRequest):
     """Search publications from a scientific source, normalize them, and store locally.
 
@@ -31,7 +39,13 @@ async def search_publications(request: SearchRequest):
     )
 
 
-@router.get("", response_model=SearchResponse)
+@router.get(
+    "",
+    response_model=SearchResponse,
+    summary="List stored publications",
+    description="Search publications already stored in the local database. "
+    "Optional ``q`` filters by title/abstract. ``limit`` controls page size (1-100).",
+)
 def list_publications(
     q: str | None = Query(default=None, description="Search title/abstract"),
     limit: int = Query(default=10, ge=1, le=100),
@@ -46,7 +60,12 @@ def list_publications(
     )
 
 
-@router.get("/{publication_id}", response_model=PublicationOut)
+@router.get(
+    "/{publication_id}",
+    response_model=PublicationOut,
+    summary="Get a publication by ID",
+    description="Get a single stored publication by its internal UUID.",
+)
 def get_publication(publication_id: str):
     """Get a single stored publication by its internal UUID."""
     from uuid import UUID

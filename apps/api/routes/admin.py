@@ -24,7 +24,12 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 __version__ = "0.1.0"
 
 
-@router.get("/health", response_model=dict[str, Any])
+@router.get(
+    "/health",
+    response_model=dict[str, Any],
+    summary="Admin health check",
+    description="Detailed system health for operators.",
+)
 def admin_health(
     request: Request,
     current_user=Depends(require_api_key),
@@ -50,7 +55,12 @@ def admin_health(
     }
 
 
-@router.get("/version", response_model=dict[str, str])
+@router.get(
+    "/version",
+    response_model=dict[str, str],
+    summary="Version information",
+    description="Return version and build information.",
+)
 def admin_version(
     current_user=Depends(require_api_key),
 ) -> dict[str, str]:
@@ -61,7 +71,12 @@ def admin_version(
     }
 
 
-@router.get("/routes", response_model=list[dict[str, Any]])
+@router.get(
+    "/routes",
+    response_model=list[dict[str, Any]],
+    summary="List API routes",
+    description="List all registered API routes.",
+)
 def admin_routes(
     request: Request,
     current_user=Depends(require_api_key),

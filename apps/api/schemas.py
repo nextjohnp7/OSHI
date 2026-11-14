@@ -278,5 +278,25 @@ class WarningTranslationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# --- Background task schemas ---
+
+
+class TaskResponse(BaseModel):
+    task_id: str
+    status: str
+    created_at: datetime
+
+
+class TaskStatusOut(BaseModel):
+    task_id: str
+    status: str
+    result: Any = None
+    error: str | None = None
+    created_at: datetime
+    completed_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
 
 

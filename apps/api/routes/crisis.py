@@ -62,7 +62,12 @@ warnings_router = APIRouter(prefix="/api/v1/warnings", tags=["warnings"])
 # ---------------------------------------------------------------------------
 
 
-@router.get("/events", response_model=list[DisasterEventOut])
+@router.get(
+    "/events",
+    response_model=list[DisasterEventOut],
+    summary="List disaster events",
+    description="List disaster events, optionally filtered by type and verification status.",
+)
 def list_events(
     event_type: str | None = Query(default=None),
     verification_status: str | None = Query(default=None),
@@ -81,7 +86,13 @@ def list_events(
     return [DisasterEventOut.model_validate(e) for e in events]
 
 
-@router.post("/events", response_model=DisasterEventOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/events",
+    response_model=DisasterEventOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a disaster event",
+    description="Create a new disaster event (preliminary until verified).",
+)
 def create_event(
     request: CrisisEventCreateRequest,
     db: Session = Depends(get_db),
@@ -102,7 +113,12 @@ def create_event(
     return DisasterEventOut.model_validate(event)
 
 
-@router.get("/events/{event_id}", response_model=DisasterEventOut)
+@router.get(
+    "/events/{event_id}",
+    response_model=DisasterEventOut,
+    summary="Get a disaster event",
+    description="Get a single disaster event with its reports and locations.",
+)
 def get_event(
     event_id: UUID,
     db: Session = Depends(get_db),
@@ -117,7 +133,12 @@ def get_event(
     return DisasterEventOut.model_validate(event)
 
 
-@router.get("/timeline", response_model=list[dict[str, Any]])
+@router.get(
+    "/timeline",
+    response_model=list[dict[str, Any]],
+    summary="Get event timeline",
+    description="Chronological timeline of disaster events.",
+)
 def get_timeline(
     limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -143,7 +164,12 @@ def get_timeline(
     ]
 
 
-@router.get("/verification", response_model=dict[str, int])
+@router.get(
+    "/verification",
+    response_model=dict[str, int],
+    summary="Verification status summary",
+    description="Count of events grouped by verification status.",
+)
 def verification_summary(
     db: Session = Depends(get_db),
     current_user=Depends(require_api_key),
@@ -162,7 +188,13 @@ def verification_summary(
 # ---------------------------------------------------------------------------
 
 
-@warnings_router.get("/official", response_model=list[OfficialWarningOut])
+@warnings_router.get(
+    "/official",
+    response_model=list[OfficialWarningOut],
+    summary="List active official warnings",
+    description="List official hazard warnings. Warnings are never independently invented; "
+    "issuer and severity are preserved exactly as issued.",
+)
 def list_warnings(
     active_only: bool = Query(default=True),
     limit: int = Query(default=50, ge=1, le=200),
@@ -182,7 +214,14 @@ def list_warnings(
     return [OfficialWarningOut.model_validate(w) for w in warnings]
 
 
-@warnings_router.post("/official", response_model=OfficialWarningOut, status_code=status.HTTP_201_CREATED)
+@warnings_router.post(
+    "/official",
+    response_model=OfficialWarningOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create an official warning",
+    description="Create an official warning retrieved from an authorized source. "
+    "Severity is preserved exactly as issued. No evacuation instructions are generated.",
+)
 def create_warning(
     issuer: str,
     warning_level: str,
@@ -240,7 +279,13 @@ def create_warning(
     return OfficialWarningOut.model_validate(warning)
 
 
-@warnings_router.post("/translations", response_model=WarningTranslationOut)
+@warnings_router.post(
+    "/translations",
+    response_model=WarningTranslationOut,
+    summary="Translate a warning",
+    description="Translate warning content into an accessible language. "
+    "Translation never changes the severity or meaning of an official warning.",
+)
 def translate_warning(
     translation_request: WarningTranslationRequest = Body(...),
     db: Session = Depends(get_db),
@@ -268,7 +313,13 @@ def translate_warning(
     )
 
 
-@warnings_router.get("/preparedness", response_model=list[dict[str, Any]])
+@warnings_router.get(
+    "/preparedness",
+    response_model=list[dict[str, Any]],
+    summary="Get preparedness guidance",
+    description="Preparedness guidance from active official warnings. "
+    "No evacuation instructions are generated automatically.",
+)
 def preparedness_guidance(
     db: Session = Depends(get_db),
     current_user=Depends(require_api_key),

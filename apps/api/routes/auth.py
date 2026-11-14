@@ -48,7 +48,13 @@ def _generate_api_key() -> str:
     return f"oshi_{secrets.token_urlsafe(32)}"
 
 
-@router.post("/bootstrap", response_model=APIKeyCreatedResponse)
+@router.post(
+    "/bootstrap",
+    response_model=APIKeyCreatedResponse,
+    summary="Bootstrap first superuser + API key",
+    description="Create the first superuser and an API key. Only works when no users exist yet. "
+    "Plaintext key is returned only once at creation time.",
+)
 def bootstrap(
     email: str,
     name: str | None = None,
@@ -111,7 +117,13 @@ def bootstrap(
     )
 
 
-@router.post("/keys", response_model=APIKeyCreatedResponse)
+@router.post(
+    "/keys",
+    response_model=APIKeyCreatedResponse,
+    summary="Create an API key",
+    description="Create a new API key for the authenticated user. "
+    "Plaintext key is returned only once at creation time.",
+)
 def create_api_key(
     request: APIKeyCreateRequest,
     current_user: User = Depends(require_api_key),
@@ -166,7 +178,12 @@ def create_api_key(
     )
 
 
-@router.get("/keys", response_model=list[APIKeyOut])
+@router.get(
+    "/keys",
+    response_model=list[APIKeyOut],
+    summary="List API keys",
+    description="List the authenticated user's API keys (prefix only; plaintext never returned).",
+)
 def list_api_keys(
     current_user: User = Depends(require_api_key),
     db: Session = Depends(get_db),
@@ -178,7 +195,11 @@ def list_api_keys(
     return [APIKeyOut.model_validate(k) for k in keys]
 
 
-@router.delete("/keys/{key_id}")
+@router.delete(
+    "/keys/{key_id}",
+    summary="Revoke an API key",
+    description="Revoke (deactivate) an API key owned by the authenticated user.",
+)
 def revoke_api_key(
     key_id: UUID,
     current_user: User = Depends(require_api_key),
@@ -202,7 +223,11 @@ def revoke_api_key(
     return {"detail": "revoked"}
 
 
-@router.post("/verify")
+@router.post(
+    "/verify",
+    summary="Verify an API key",
+    description="Verify that an API key is valid. Returns the user email on success.",
+)
 def verify_key(
     api_key: str = Depends(get_api_key),
     db: Session = Depends(get_db),

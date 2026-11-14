@@ -26,6 +26,7 @@ from typing import Any
 import re
 
 import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from packages.connectors.scientific.schemas import NormalizedPublication
 
@@ -99,6 +100,18 @@ class PubMedConnector:
         self.api_key = api_key
         self.timeout = timeout
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(
+            (
+                httpx.HTTPStatusError,
+                httpx.RequestError,
+                httpx.ConnectTimeout,
+                httpx.ReadTimeout,
+            )
+        ),
+    )
     async def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
             "query": query,

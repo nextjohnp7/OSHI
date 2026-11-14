@@ -22,6 +22,7 @@ import re
 import xml.etree.ElementTree as ET
 
 import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from packages.connectors.scientific.schemas import NormalizedPublication
 
@@ -66,6 +67,18 @@ class ArxivConnector:
         self.mailto = mailto
         self.timeout = timeout
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(
+            (
+                httpx.HTTPStatusError,
+                httpx.RequestError,
+                httpx.ConnectTimeout,
+                httpx.ReadTimeout,
+            )
+        ),
+    )
     async def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
             "search_query": f'all:{query}',

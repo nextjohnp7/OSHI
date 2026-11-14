@@ -21,7 +21,12 @@ from packages.core.auth import require_api_key
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
 
 
-@router.get("/runs", response_model=list[dict[str, Any]])
+@router.get(
+    "/runs",
+    response_model=list[dict[str, Any]],
+    summary="List agent runs",
+    description="List research agent runs (in-memory store, dev only).",
+)
 def list_agent_runs(
     current_user=Depends(require_api_key),
 ) -> list[dict[str, Any]]:
@@ -40,7 +45,12 @@ def list_agent_runs(
     return runs
 
 
-@router.get("/runs/{run_id}", response_model=dict[str, Any])
+@router.get(
+    "/runs/{run_id}",
+    response_model=dict[str, Any],
+    summary="Get an agent run",
+    description="Get the status and result of a specific agent run.",
+)
 def get_agent_run(
     run_id: str,
     current_user=Depends(require_api_key),
@@ -62,7 +72,12 @@ def get_agent_run(
     }
 
 
-@router.get("/approvals", response_model=list[dict[str, Any]])
+@router.get(
+    "/approvals",
+    response_model=list[dict[str, Any]],
+    summary="List pending approvals",
+    description="List pending human-in-the-loop approvals (placeholder).",
+)
 def list_approvals(
     current_user=Depends(require_api_key),
 ) -> list[dict[str, Any]]:
