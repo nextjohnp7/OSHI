@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 0 — Foundation and Reconnaissance (Sprint 8 — Open source governance, agents/admin API, CI/CD, DONE)
+PHASE 0 — Foundation and Reconnaissance (Sprint 10 — Production hardening, observability, frontend enhancements, DONE)
 
 ## Completed
 
@@ -40,11 +40,10 @@ None.
 
 ## Tests Executed
 
-- `uv run pytest tests/ -v` — **81 passed, 0 failed**
+- `uv run pytest tests/ -v` — **87 passed, 2 skipped, 0 failed** (PostgreSQL integration tests skip when no Docker/psql locally)
 
 ## Test Results
 
-All 64 tests pass:
 - test_foundation.py: 2 passed
 - test_openalex_connector.py: 5 passed
 - test_crossref_connector.py: 5 passed
@@ -60,6 +59,8 @@ All 64 tests pass:
 - test_auth_models.py: 4 passed
 - test_auth.py: 7 passed
 - test_crisis_warning.py: 8 passed
+- test_task_persistence.py: 6 passed (task persistence + e2e ingest flow)
+- tests/integration/test_postgresql.py: 2 skipped (requires PostgreSQL + pgvector via Docker)
 
 Live API verification:
 - OpenAlex: search + normalize + store + list (verified earlier)
@@ -70,7 +71,9 @@ Live API verification:
 1. `oshi.egg-info/` was previously committed, then removed from tracking + added to `.gitignore` (commit `22bbf8b`). Verified clean.
 2. Crossref `license` field often `None` in live API — handled gracefully (normalized to `None`).
 3. Embedding defaults to deterministic hashing-trick (128-dim) when sentence-transformers model cannot be downloaded (no network). Set `OPENAI_API_KEY` or install model for semantic embeddings.
-4. Frontend MVP not yet built (Sprint 7 optional).
+4. PostgreSQL integration tests (`tests/integration/test_postgresql.py`) skip locally — no Docker/PostgreSQL available. Verify on CI with service container or Docker.
+5. Crisis map markers are demonstrative (random coordinates around Indonesia). Replace with real `event_locations` data when PostGIS integration is complete.
+6. Rate limiting is in-memory sliding window (single-worker). For multi-worker production, replace store with Redis.
 
 ## Technical Decisions (ADRs)
 
@@ -85,64 +88,30 @@ None.
 
 ## Next Tasks
 
-- Keep `docs/PROJECT_STATUS.md` updated each session
+- Run PostgreSQL + pgvector integration tests on CI/GitHub Actions with service container
+- PostGIS integration for crisis map (connect Leaflet markers to real `event_locations` data)
+- Observability enhancements: distributed tracing, detailed metrics
+- Production hardening: rate limiting via Redis, CORS origin restriction, input sanitization review
 
-## Files Changed (Sprint 3 + Research + Auth + Docker)
+## Files Changed (Sprint 9 — Task Persistence + Integration Tests)
 
-- `packages/document_processing/__init__.py` (new)
-- `packages/document_processing/models.py` (new)
-- `packages/document_processing/chunking.py` (new)
-- `packages/document_processing/embeddings.py` (upgraded: sentence-transformers + hashing fallback)
-- `packages/document_processing/retrieval.py` (new)
-- `packages/document_processing/service.py` (new)
-- `apps/api/routes/documents.py` (new)
-- `apps/api/main.py` (documents router wired)
-- `apps/api/schemas.py` (document schemas added)
-- `alembic/env.py` (document models registered)
-- `alembic/versions/e065afc05779_create_documents_and_document_chunks_.py` (new migration)
-- `tests/unit/test_chunking.py` (new)
-- `tests/unit/test_embeddings.py` (new, upgraded)
-- `tests/unit/test_retrieval.py` (new)
-- `tests/unit/test_document_service.py` (new)
-- `packages/core/models.py` (auth models added)
-- `packages/core/config.py` (connector credential settings added)
-- `packages/connectors/scientific/arxiv.py` (new)
-- `packages/connectors/scientific/pubmed.py` (new)
-- `packages/agents/research/__init__.py` (new)
-- `packages/agents/research/graph.py` (new)
-- `packages/agents/research/nodes.py` (new)
-- `packages/agents/research/state.py` (new)
-- `apps/api/routes/research.py` (new)
-- `tests/unit/test_arxiv_connector.py` (new)
-- `tests/unit/test_pubmed_connector.py` (new)
-- `tests/unit/test_research_agent.py` (new)
-- `tests/unit/test_auth_models.py` (new)
-- `tests/unit/test_auth.py` (new)
-- `tests/unit/test_crisis_warning.py` (new)
-- `apps/api/routes/crisis.py` (new)
-- `packages/core/models.py` (crisis models added)
-- `alembic/versions/dfdeecf59013_add_disaster_intelligence_models_.py` (new migration)
-- `apps/web/index.html` (new)
-- `LICENSE` (new)
-- `CONTRIBUTING.md` (new)
-- `CODE_OF_CONDUCT.md` (new)
-- `SECURITY.md` (new)
-- `GOVERNANCE.md` (new)
-- `ROADMAP.md` (new)
-- `.github/workflows/ci.yml` (new)
-- `apps/api/routes/agents.py` (new)
-- `apps/api/routes/admin.py` (new)
-- `Dockerfile` (new)
-- `docker-compose.yml` (new)
-- `.env.example` (connector credential variables added)
-- `docs/PROJECT_STATUS.md` (updated)
-- `docs/research/data-source-research.md` (new)
-- `docs/research/disaster-source-research.md` (new)
-- `docs/research/technology-evaluation.md` (new)
-- `docs/research/repository-reconnaissance.md` (new)
-- `docs/architecture/database-design.md` (new)
-- `docs/SECURITY_REVIEW.md` (new)
-- `docs/TESTING_STRATEGY.md` (new)
+- `packages/core/models.py` — `Task` model added
+- `packages/core/tasks.py` — rewritten DB-backed `TaskStore` + `_json_safe`
+- `alembic/versions/7e90140cf32c_add_task_persistence_table.py` — new migration
+- `apps/api/schemas.py` — `task_type` added to `TaskResponse`/`TaskStatusOut`; `id` → `task_id`
+- `apps/api/routes/tasks.py` — `GET /api/v1/tasks` (list), `DELETE /api/v1/tasks/{task_id}` (cancel)
+- `apps/api/routes/documents.py` — POST uses DB-backed `task_store` with `task_type`
+- `apps/api/routes/research.py` — POST uses DB-backed `task_store` with `task_type`
+- `tests/unit/test_task_persistence.py` — new (6 integration tests)
+
+## Files Changed (Sprint 10 — Production Hardening, Observability, Frontend Enhancements)
+
+- `packages/core/middleware.py` — new (`RateLimitMiddleware`, `add_cors_middleware`)
+- `apps/api/main.py` — CORS + rate limiting middleware wired; `/health` enhanced with `pending_tasks`
+- `apps/api/routes/metrics.py` — new (Prometheus `/api/v1/metrics`)
+- `apps/api/routes/documents.py` — input sanitization (strip control chars)
+- `apps/web/index.html` — document reader modal + Leaflet.js crisis map
+- `tests/integration/test_postgresql.py` — new (skipif no Docker)
 
 ## Commit References
 
@@ -161,6 +130,10 @@ None.
 - `9a7ad4a` — feat(sprint7a): Crisis Intelligence and Early Warning API endpoints
 - `af48871` — feat(sprint7b): Frontend MVP dashboard
 - `6d8a0f9` — feat(sprint8): Open source governance, agents/admin API, CI/CD
+- `5122ffc` — fix: resolve ruff CI failures
+- `fa8fdfa` — feat(sprint8b): background tasks, retry mechanism, CI lint, API docs
+- `e4a936d` — feat(sprint9): task persistence + integration tests
+- `c8118db` — feat(sprint10): production hardening, observability, frontend enhancements
 
 ## Risks
 
