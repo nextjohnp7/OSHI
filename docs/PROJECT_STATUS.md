@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 0 — Foundation and Reconnaissance (Sprint 7a: Crisis/Warning API, DONE)
+PHASE 0 — Foundation and Reconnaissance (Sprint 7 — Crisis/Warning API + Frontend MVP, DONE)
 
 ## Completed
 
@@ -85,7 +85,6 @@ None.
 
 ## Next Tasks
 
-- Sprint 7: Frontend MVP (dashboard, publication search, document reader) — optional
 - Keep `docs/PROJECT_STATUS.md` updated each session
 
 ## Files Changed (Sprint 3 + Research + Auth + Docker)
@@ -123,6 +122,7 @@ None.
 - `apps/api/routes/crisis.py` (new)
 - `packages/core/models.py` (crisis models added)
 - `alembic/versions/dfdeecf59013_add_disaster_intelligence_models_.py` (new migration)
+- `apps/web/index.html` (new)
 - `Dockerfile` (new)
 - `docker-compose.yml` (new)
 - `.env.example` (connector credential variables added)
@@ -150,6 +150,7 @@ None.
 - `09ab1ff` — feat(docker): containerize for production with PostgreSQL + pgvector
 - `7d4d0f5` — feat(auth): API key / mailto support for all scientific connectors
 - `9a7ad4a` — feat(sprint7a): Crisis Intelligence and Early Warning API endpoints
+- `af48871` — feat(sprint7b): Frontend MVP dashboard
 
 ## Risks
 
