@@ -15,6 +15,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from apps.api.errors import register_error_handlers
+from apps.api.routes.admin import router as admin_router
+from apps.api.routes.agents import router as agents_router
 from apps.api.routes.auth import router as auth_router
 from apps.api.routes.crisis import router as crisis_router, warnings_router
 from apps.api.routes.documents import router as documents_router
@@ -55,6 +57,14 @@ def create_app() -> FastAPI:
     )
     app.include_router(
         warnings_router,
+        dependencies=[Depends(require_api_key)],
+    )
+    app.include_router(
+        agents_router,
+        dependencies=[Depends(require_api_key)],
+    )
+    app.include_router(
+        admin_router,
         dependencies=[Depends(require_api_key)],
     )
 
