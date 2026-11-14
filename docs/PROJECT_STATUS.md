@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 0 — Foundation and Reconnaissance (Sprint 6 — Research Agent + arXiv/PubMed integration, DONE)
+PHASE 0 — Foundation and Reconnaissance (Auth middleware + protected routes, DONE)
 
 ## Completed
 
@@ -12,6 +12,7 @@ PHASE 0 — Foundation and Reconnaissance (Sprint 6 — Research Agent + arXiv/P
 - `packages/core/config.py` — Pydantic Settings (DATABASE_URL, LLM provider, etc.)
 - `packages/core/database.py` — SQLAlchemy engine + session factory + `get_db()`
 - `packages/core/models.py` — `Publication`, `Organization`, `User`, `OrganizationMember`, `APIKey` models (provenance + multi-tenant auth)
+- `packages/core/auth.py` — API key hashing, verification, `require_api_key` / `get_current_user` dependencies
 - `packages/core/logging.py` — structured logging (JSON/plain)
 - `alembic.ini` + `alembic/env.py` — configured to read DATABASE_URL from OSHI settings
 - Migration `8054612ce976` — create `publications` table (applied to SQLite dev DB)
@@ -38,7 +39,7 @@ None.
 
 ## Tests Executed
 
-- `uv run pytest tests/ -v` — **64 passed, 0 failed**
+- `uv run pytest tests/ -v` — **73 passed, 0 failed**
 
 ## Test Results
 
@@ -56,6 +57,7 @@ All 64 tests pass:
 - test_arxiv_connector.py: 5 passed
 - test_pubmed_connector.py: 5 passed
 - test_auth_models.py: 4 passed
+- test_auth.py: 7 passed
 
 Live API verification:
 - OpenAlex: search + normalize + store + list (verified earlier)
@@ -65,6 +67,8 @@ Live API verification:
 
 1. `oshi.egg-info/` was previously committed, then removed from tracking + added to `.gitignore` (commit `22bbf8b`). Verified clean.
 2. Crossref `license` field often `None` in live API — handled gracefully (normalized to `None`).
+3. Embedding defaults to deterministic hashing-trick (128-dim) when sentence-transformers model cannot be downloaded (no network). Set `OPENAI_API_KEY` or install model for semantic embeddings.
+4. Frontend MVP not yet built (Sprint 7 optional).
 
 ## Technical Decisions (ADRs)
 
@@ -79,9 +83,6 @@ None.
 
 ## Next Tasks
 
-- Add API authentication middleware (JWT/API key validation) on protected routes — Part 8, Part 10
-- Add `docs/research/disaster-source-research.md` and `docs/architecture/database-design.md`
-- Add `docs/SECURITY_REVIEW.md` and `docs/TESTING_STRATEGY.md`
 - Sprint 7: Frontend MVP (dashboard, publication search, document reader) — optional
 - Keep `docs/PROJECT_STATUS.md` updated each session
 
@@ -120,8 +121,12 @@ None.
 - `.env.example` (connector credential variables added)
 - `docs/PROJECT_STATUS.md` (updated)
 - `docs/research/data-source-research.md` (new)
+- `docs/research/disaster-source-research.md` (new)
 - `docs/research/technology-evaluation.md` (new)
 - `docs/research/repository-reconnaissance.md` (new)
+- `docs/architecture/database-design.md` (new)
+- `docs/SECURITY_REVIEW.md` (new)
+- `docs/TESTING_STRATEGY.md` (new)
 
 ## Commit References
 

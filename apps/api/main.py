@@ -13,6 +13,7 @@ from fastapi import Depends, FastAPI
 
 from apps.api.errors import register_error_handlers
 from apps.api.routes.auth import router as auth_router
+from apps.api.routes.crisis import router as crisis_router, warnings_router
 from apps.api.routes.documents import router as documents_router
 from apps.api.routes.publications import router as publications_router
 from apps.api.routes.research import router as research_router
@@ -43,6 +44,14 @@ def create_app() -> FastAPI:
     )
     app.include_router(
         research_router,
+        dependencies=[Depends(require_api_key)],
+    )
+    app.include_router(
+        crisis_router,
+        dependencies=[Depends(require_api_key)],
+    )
+    app.include_router(
+        warnings_router,
         dependencies=[Depends(require_api_key)],
     )
 

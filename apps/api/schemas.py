@@ -173,4 +173,110 @@ class APIKeyRevokeRequest(BaseModel):
     key_id: UUID
 
 
+# --- Crisis Intelligence schemas (Part 3.4 GCIN, Part 10 API) ---
+
+
+class EventReportOut(BaseModel):
+    id: UUID
+    event_id: UUID
+    source_name: str
+    source_url: str | None = None
+    publication_time: datetime | None = None
+    observation_time: datetime | None = None
+    event_type: str | None = None
+    reported_impact: str | None = None
+    geographic_scope: str | None = None
+    verification_status: str
+    retrieved_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class EventLocationOut(BaseModel):
+    id: UUID
+    event_id: UUID
+    region_id: UUID | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    description: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class DisasterEventOut(BaseModel):
+    id: UUID
+    event_type: str
+    title: str
+    description: str | None = None
+    status: str
+    verification_status: str
+    reported_impact: str | None = None
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    reports: list[EventReportOut] = []
+    locations: list[EventLocationOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+class CrisisEventCreateRequest(BaseModel):
+    event_type: str
+    title: str
+    description: str | None = None
+    status: str = "preliminary"
+    verification_status: str = "UNVERIFIED"
+    reported_impact: str | None = None
+
+
+class OfficialWarningOut(BaseModel):
+    id: UUID
+    event_id: UUID | None = None
+    issuer: str
+    warning_level: str
+    severity: str
+    effective_time: datetime | None = None
+    expiry_time: datetime | None = None
+    affected_locations: str | None = None
+    preparedness_guidance: str | None = None
+    source_bulletin_url: str | None = None
+    is_active: bool
+
+    model_config = {"from_attributes": True}
+
+
+class SituationReportOut(BaseModel):
+    id: UUID
+    event_id: UUID
+    title: str
+    summary: str
+    geographic_scope: str | None = None
+    confirmed_information: str | None = None
+    unverified_reports: str | None = None
+    conflicting_information: str | None = None
+    known_impact: str | None = None
+    information_gaps: str | None = None
+    last_update_time: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# --- Early Warning schemas (Part 3.5 UEWI) ---
+
+
+class WarningTranslationRequest(BaseModel):
+    warning_id: UUID
+    target_language: str
+
+
+class WarningTranslationOut(BaseModel):
+    warning_id: UUID
+    target_language: str
+    translated_text: str
+    original_text: str
+    translation_timestamp: datetime
+
+    model_config = {"from_attributes": True}
+
+
+
 
