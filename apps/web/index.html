@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSHI — Open Science & Humanitarian Intelligence</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         :root {
             --foreground: #0f172a;
@@ -184,6 +186,8 @@
             <a href="#" onclick="showTab('research')">Research Intelligence</a>
             <a href="#" onclick="showTab('crisis')">Crisis Intelligence</a>
             <a href="#" onclick="showTab('warnings')">Early Warning</a>
+            <a href="#" onclick="showTab('documents')">Documents</a>
+            <a href="#" onclick="showTab('crisis-map')">Crisis Map</a>
             <div class="api-key-box">
                 <label for="apiKeyInput" style="margin:0;">API Key:</label>
                 <input type="password" id="apiKeyInput" placeholder="oshi_...">
@@ -349,6 +353,8 @@
         function showTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tabName).classList.add('active');
+            if (tabName === 'documents') loadDocuments();
+            if (tabName === 'crisis-map') initCrisisMap();
         }
 
         async function apiRequest(path, options = {}) {
@@ -564,6 +570,120 @@
             document.getElementById('apiNotice').style.display = 'none';
         }
         loadDashboard();
+
+        // ---------- Documents ----------
+        async function loadDocuments() {
+            const el = document.getElementById('documentsList');
+            el.innerHTML = '<div class="loading">Loading documents...</div>';
+            try {
+                const res = await apiRequest('/api/v1/documents?limit=20');
+                el.innerHTML = '';
+                if (res.length === 0) {
+                    el.innerHTML = '<div class="empty">No documents yet.</div>';
+                } else {
+                    res.forEach(d => {
+                        el.innerHTML += '<div class="result-item">' +
+                            '<div class="result-title">' + escapeHtml(d.title) + '</div>' +
+                            '<div class="result-meta">' + d.source_name + ' • ' + d.source_id + '</div>' +
+                            '<button class="secondary" onclick="showDocument(\'' + d.id + '\', \'' + escapeHtml(d.title).replace(/'/g, "\\'") + '\')">Read</button>' +
+                            '</div>';
+                    });
+                }
+            } catch (e) {
+                el.innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+
+        async function showDocument(docId, title) {
+            const modal = document.getElementById('docModal');
+            document.getElementById('docModalTitle').textContent = title;
+            document.getElementById('docModalContent').innerHTML = '<div class="loading">Loading...</div>';
+            modal.style.display = 'block';
+            try {
+                const res = await apiRequest('/api/v1/documents/' + docId + '/chunks');
+                let html = '';
+                res.forEach(c => {
+                    html += '<div class="card" style="margin-bottom:0.75rem;">' +
+                        '<div class="result-meta" style="font-size:0.7rem;">Chunk #' + c.chunk_index + '</div>' +
+                        '<div style="white-space:pre-wrap;line-height:1.6;">' + escapeHtml(c.text) + '</div>' +
+                        '</div>';
+                });
+                document.getElementById('docModalContent').innerHTML = html || '<div class="empty">No chunks.</div>';
+            } catch (e) {
+                document.getElementById('docModalContent').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+
+        function closeDocModal() {
+            document.getElementById('docModal').style.display = 'none';
+        }
+
+        // ---------- Crisis Map ----------
+        let crisisMap = null;
+        let crisisMarkers = [];
+
+        async function initCrisisMap() {
+            const mapEl = document.getElementById('crisisMap');
+            if (!mapEl) return;
+            if (crisisMap) {
+                crisisMap.invalidateSize();
+                loadCrisisMapMarkers();
+                return;
+            }
+            crisisMap = L.map('crisisMap').setView([-6.2, 106.8], 5); // default Indonesia
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(crisisMap);
+            loadCrisisMapMarkers();
+        }
+
+        async function loadCrisisMapMarkers() {
+            if (!crisisMap) return;
+            crisisMarkers.forEach(m => crisisMap.removeLayer(m));
+            crisisMarkers = [];
+            try {
+                const res = await apiRequest('/api/v1/crisis/events?limit=50');
+                res.forEach(e => {
+                    // Lokasi dummy untuk demo; ganti dengan data event_locasi nyata
+                    const lat = -6.2 + (Math.random() - 0.5) * 2;
+                    const lng = 106.8 + (Math.random() - 0.5) * 2;
+                    const marker = L.marker([lat, lng]).addTo(crisisMap)
+                        .bindPopup('<b>' + escapeHtml(e.title) + '</b><br>' + e.event_type + ' • ' + e.verification_status);
+                    crisisMarkers.push(marker);
+                });
+            } catch (e) {
+                console.error('Crisis map load failed', e);
+            }
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('docModal');
+            if (event.target === modal) modal.style.display = 'none';
+        };
     </script>
+
+    <!-- Document Reader Modal -->
+    <div id="docModal" style="display:none; position:fixed; z-index:2000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+        <div style="position:absolute; top:1rem; right:1rem;">
+            <button onclick="closeDocModal()" style="background:var(--danger);color:#fff;border:none;padding:0.5rem 1rem;border-radius:0.5rem;cursor:pointer;">Close</button>
+        </div>
+        <div style="background:var(--card); margin:2rem auto; max-width:900px; max-height:80vh; overflow:auto; padding:1.5rem; border-radius:0.75rem; border:1px solid var(--border); box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h2 id="docModalTitle" style="margin:0;"></h2>
+            </div>
+            <div id="docModalContent"></div>
+        </div>
+    </div>
+
+    <!-- Crisis Map Section -->
+    <section id="tab-crisis-map" class="tab-content section">
+        <h1>Crisis Map</h1>
+        <p class="result-meta" style="margin-bottom:1rem;">Peta lokasi peristiwa bencana (titik demonstratif; ganti dengan data event_locasi nyata).</p>
+        <div class="card" style="height:500px; width:100%; position:relative;">
+            <div id="crisisMap" style="height:100%; width:100%;"></div>
+        </div>
+        <button onclick="initCrisisMap()" style="margin-top:1rem;">Refresh Peta</button>
+    </section>
 </body>
 </html>

@@ -33,8 +33,12 @@ async def ingest_document(
 
     async def _ingest() -> None:
         try:
+            # Sanitasi input: hapus karakter kontrol kecuali whitespace umum.
+            clean_text = "".join(
+                ch for ch in request.text if ch == "\n" or ch == "\t" or ord(ch) >= 32
+            )
             document = service.ingest(
-                text=request.text,
+                text=clean_text,
                 source_name=request.source_name,
                 source_id=request.source_id,
                 title=request.title,
