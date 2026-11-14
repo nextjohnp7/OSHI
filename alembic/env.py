@@ -10,7 +10,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from packages.core.config import get_settings
 from packages.core.database import Base
 import packages.core.models  # noqa: F401  register models with Base.metadata
 import packages.document_processing.models  # noqa: F401  register document models
@@ -41,9 +40,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    get_settings.cache_clear()
-    settings = get_settings()
-    url = os.environ.get("DATABASE_URL", settings.database_url)
+    url = os.environ.get("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -62,11 +59,9 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    get_settings.cache_clear()
-    settings = get_settings()
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = os.environ.get(
-        "DATABASE_URL", settings.database_url
+        "DATABASE_URL", config.get_main_option("sqlalchemy.url")
     )
     connectable = engine_from_config(
         configuration,
