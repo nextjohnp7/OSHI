@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 0 — Foundation and Reconnaissance (Sprint 7 — Crisis/Warning API + Frontend MVP, DONE)
+PHASE 0 — Foundation and Reconnaissance (Sprint 8 — Open source governance, agents/admin API, CI/CD, DONE)
 
 ## Completed
 
@@ -123,6 +123,15 @@ None.
 - `packages/core/models.py` (crisis models added)
 - `alembic/versions/dfdeecf59013_add_disaster_intelligence_models_.py` (new migration)
 - `apps/web/index.html` (new)
+- `LICENSE` (new)
+- `CONTRIBUTING.md` (new)
+- `CODE_OF_CONDUCT.md` (new)
+- `SECURITY.md` (new)
+- `GOVERNANCE.md` (new)
+- `ROADMAP.md` (new)
+- `.github/workflows/ci.yml` (new)
+- `apps/api/routes/agents.py` (new)
+- `apps/api/routes/admin.py` (new)
 - `Dockerfile` (new)
 - `docker-compose.yml` (new)
 - `.env.example` (connector credential variables added)
@@ -151,6 +160,7 @@ None.
 - `7d4d0f5` — feat(auth): API key / mailto support for all scientific connectors
 - `9a7ad4a` — feat(sprint7a): Crisis Intelligence and Early Warning API endpoints
 - `af48871` — feat(sprint7b): Frontend MVP dashboard
+- `6d8a0f9` — feat(sprint8): Open source governance, agents/admin API, CI/CD
 
 ## Risks
 
