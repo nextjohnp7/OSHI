@@ -1,6 +1,6 @@
 """Document API routes (Sprint 3)."""
 
-from fastapi import APIRouter, BackgroundTasks, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
 from apps.api.schemas import (
     DocumentChunkOut,
@@ -29,7 +29,7 @@ async def ingest_document(
     replaces its chunks. Returns a task ID immediately; poll
     ``GET /api/v1/tasks/{task_id}`` for the result.
     """
-    task_id = task_store.create()
+    task_id = task_store.create(task_type="ingest")
 
     async def _ingest() -> None:
         try:
@@ -50,10 +50,13 @@ async def ingest_document(
 
     background_tasks.add_task(_ingest)
     task_record = task_store.get(task_id)
+    if task_record is None:
+        raise HTTPException(status_code=500, detail="Task record not found")
     return TaskResponse(
         task_id=task_id,
-        status=task_record.status,
-        created_at=task_record.created_at,
+        status=task_record["status"],
+        task_type=task_record["task_type"],
+        created_at=task_record["created_at"],
     )
 
 

@@ -284,12 +284,14 @@ class WarningTranslationOut(BaseModel):
 class TaskResponse(BaseModel):
     task_id: str
     status: str
+    task_type: str
     created_at: datetime
 
 
 class TaskStatusOut(BaseModel):
     task_id: str
     status: str
+    task_type: str
     result: Any = None
     error: str | None = None
     created_at: datetime

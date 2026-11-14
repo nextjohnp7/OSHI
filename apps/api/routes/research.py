@@ -37,7 +37,7 @@ async def run_research(
     snippets, and generates a markdown research report. Returns a task ID
     immediately; poll ``GET /api/v1/tasks/{task_id}`` for the result.
     """
-    task_id = task_store.create()
+    task_id = task_store.create(task_type="research")
 
     async def _run() -> None:
         try:
@@ -56,10 +56,13 @@ async def run_research(
 
     background_tasks.add_task(_run)
     task_record = task_store.get(task_id)
+    if task_record is None:
+        raise HTTPException(status_code=500, detail="Task record not found")
     return TaskResponse(
         task_id=task_id,
-        status=task_record.status,
-        created_at=task_record.created_at,
+        status=task_record["status"],
+        task_type=task_record["task_type"],
+        created_at=task_record["created_at"],
     )
 
 

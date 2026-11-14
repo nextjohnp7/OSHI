@@ -450,3 +450,34 @@ class SituationReport(Base):
     )
 
     event: Mapped["DisasterEvent"] = relationship(back_populates="situation_reports")
+
+
+# --- Background task persistence (Sprint 9) ---
+
+
+class Task(Base):
+    """Background task record for asynchronous operations (ingest, research).
+
+    Persisted so tasks survive server restarts and can be queried across
+    workers in production.
+    """
+
+    __tablename__ = "tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", index=True
+    )
+    task_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # ingest, research
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
