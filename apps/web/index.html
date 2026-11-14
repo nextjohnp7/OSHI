@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSHI — Open Science & Humanitarian Intelligence</title>
+    <style>
+        :root {
+            --foreground: #0f172a;
+            --muted-foreground: #64748b;
+            --accent: #0ea5e9;
+            --border: #e2e8f0;
+            --card: #ffffff;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: var(--foreground);
+            line-height: 1.5;
+        }
+        header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo {
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: var(--accent);
+            text-decoration: none;
+        }
+        nav {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        nav a {
+            text-decoration: none;
+            color: var(--muted-foreground);
+            font-size: 0.875rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+        }
+        nav a:hover, nav a.active {
+            color: var(--foreground);
+            background: #f1f5f9;
+        }
+        .api-key-box {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #f1f5f9;
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+        }
+        .api-key-box input {
+            flex: 1;
+            padding: 0.25rem;
+            border: 1px solid var(--border);
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+        }
+        .api-key-box button {
+            background: var(--accent);
+            color: #ffffff;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 1rem; color: var(--foreground); }
+        h2 { font-size: 1.125rem; margin: 1.5rem 0 0.75rem; color: var(--foreground); }
+        .grid { display: grid; gap: 1rem; }
+        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-unverified { background: #fef3c7; color: #92400e; }
+        .badge-source-identified { background: #dbeafe; color: #1e40af; }
+        .badge-corroborated { background: #d1fae5; color: #065f46; }
+        .badge-officially-confirmed { background: #dcfce7; color: #166534; }
+        .badge-contradicted { background: #fee2e2; color: #991b1b; }
+        .badge-outdated { background: #f3f4f6; color: #4b5563; }
+        .event-type-flood { border-left: 4px solid var(--accent); }
+        .event-type-earthquake { border-left: 4px solid var(--danger); }
+        .event-type-wildfire { border-left: 4px solid var(--warning); }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        button {
+            background: var(--accent);
+            color: #ffffff;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        button:hover { background: #0284c7; }
+        button.secondary { background: #e2e8f0; color: var(--foreground); }
+        button.secondary:hover { background: #cbd5e1; }
+        .form-group { margin-bottom: 0.75rem; }
+        .form-group label { display: block; margin-bottom: 0.25rem; font-size: 0.8125rem; color: var(--muted-foreground); }
+        .results { margin-top: 1rem; }
+        .result-item {
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .result-item:last-child { border-bottom: none; }
+        .result-title { font-weight: 600; color: var(--foreground); }
+        .result-meta { font-size: 0.75rem; color: var(--muted-foreground); }
+        .result-source { color: var(--accent); text-decoration: none; font-size: 0.75rem; }
+        .empty { color: var(--muted-foreground); text-align: center; padding: 2rem; }
+        .loading { color: var(--muted-foreground); font-style: italic; }
+        .error { color: var(--danger); background: #fef2f2; border: 1px solid #fee2e2; padding: 0.75rem; border-radius: 0.5rem; margin: 1rem 0; }
+        .api-notice {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.8125rem;
+        }
+        .section { margin-bottom: 2rem; }
+        .tab { display: inline-block; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 0.5rem 0.5rem 0 0; margin-bottom: -1px; background: #f1f5f9; color: var(--muted-foreground); text-decoration: none; font-size: 0.875rem; }
+        .tab.active { background: #ffffff; color: var(--foreground); border-bottom-color: #ffffff; }
+        .tab-content { display: none; padding: 1rem 0; }
+        .tab-content.active { display: block; }
+        .warning-card {
+            border-left: 4px solid var(--danger);
+            background: #fef2f2;
+        }
+        .warning-card.active-warning { border-left-color: var(--success); background: #f0fdf4; }
+        @media (max-width: 640px) {
+            main { padding: 1rem; }
+            nav { gap: 0.75rem; }
+            nav a { padding: 0.4rem 0.5rem; font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="#" class="logo" onclick="showTab('dashboard')">OSHI</a>
+        <nav>
+            <a href="#" onclick="showTab('dashboard')">Dashboard</a>
+            <a href="#" onclick="showTab('research')">Research Intelligence</a>
+            <a href="#" onclick="showTab('crisis')">Crisis Intelligence</a>
+            <a href="#" onclick="showTab('warnings')">Early Warning</a>
+            <div class="api-key-box">
+                <label for="apiKeyInput" style="margin:0;">API Key:</label>
+                <input type="password" id="apiKeyInput" placeholder="oshi_...">
+                <button onclick="saveApiKey()">Save</button>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div id="apiNotice" class="api-notice" style="display:none;">
+            <strong>API key required.</strong> Enter your OSHI API key above to access protected endpoints.
+        </div>
+
+        <!-- Dashboard -->
+        <section id="tab-dashboard" class="tab-content active section">
+            <h1>Dashboard</h1>
+            <div class="grid grid-2">
+                <div class="card">
+                    <h2>Recent Publications</h2>
+                    <div id="dashboardPublications" class="results">
+                        <div class="loading">Loading publications...</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>Recent Crisis Events</h2>
+                    <div id="dashboardEvents" class="results">
+                        <div class="loading">Loading events...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Research Intelligence -->
+        <section id="tab-research" class="tab-content section">
+            <h1>Research Intelligence</h1>
+            <div class="form-group">
+                <label>Search Topic</label>
+                <input type="text" id="researchQuery" placeholder="e.g. climate change adaptation">
+            </div>
+            <div class="form-group">
+                <label>Source</label>
+                <select id="researchSource">
+                    <option value="">Any source</option>
+                    <option value="openalex">OpenAlex</option>
+                    <option value="crossref">Crossref</option>
+                    <option value="arxiv">arXiv</option>
+                    <option value="pubmed">PubMed</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Limit</label>
+                <select id="researchLimit">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                </select>
+            </div>
+            <button onclick="searchPublications()">Search Publications</button>
+            <button onclick="searchStoredPublications()" class="secondary">Search Stored</button>
+            <div id="researchResults" class="results"></div>
+        </section>
+
+        <!-- Crisis Intelligence -->
+        <section id="tab-crisis" class="tab-content section">
+            <h1>Crisis Intelligence</h1>
+            <div class="form-group">
+                <label>Event Type</label>
+                <select id="crisisType">
+                    <option value="">All types</option>
+                    <option value="flood">Flood</option>
+                    <option value="earthquake">Earthquake</option>
+                    <option value="wildfire">Wildfire</option>
+                    <option value="tropical_cyclone">Tropical Cyclone</option>
+                    <option value="landslide">Landslide</option>
+                    <option value="volcanic_activity">Volcanic Activity</option>
+                    <option value="extreme_heat">Extreme Heat</option>
+                    <option value="drought">Drought</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Verification Status</label>
+                <select id="crisisVerification">
+                    <option value="">All statuses</option>
+                    <option value="UNVERIFIED">Unverified</option>
+                    <option value="SOURCE_IDENTIFIED">Source Identified</option>
+                    <option value="CORROBORATED">Corroborated</option>
+                    <option value="OFFICIALLY_CONFIRMED">Officially Confirmed</option>
+                    <option value="CONTRADICTED">Contradicted</option>
+                    <option value="OUTDATED">Outdated</option>
+                </select>
+            </div>
+            <button onclick="loadCrisisEvents()">Load Events</button>
+            <button onclick="loadTimeline()" class="secondary">View Timeline</button>
+            <div id="crisisEvents" class="results"></div>
+            <div id="crisisTimeline" class="results" style="display:none;"></div>
+        </section>
+
+        <!-- Early Warning -->
+        <section id="tab-warnings" class="tab-content section">
+            <h1>Early Warning</h1>
+            <div class="form-group">
+                <label>Issuer</label>
+                <input type="text" id="warningIssuer" placeholder="e.g. BMKG">
+            </div>
+            <div class="form-group">
+                <label>Warning Level</label>
+                <input type="text" id="warningLevel" placeholder="e.g. Waspada">
+            </div>
+            <div class="form-group">
+                <label>Severity</label>
+                <input type="text" id="warningSeverity" placeholder="e.g. moderate">
+            </div>
+            <div class="form-group">
+                <label>Affected Locations</label>
+                <input type="text" id="warningLocations" placeholder="e.g. Jakarta, Indonesia">
+            </div>
+            <div class="form-group">
+                <label>Preparedness Guidance</label>
+                <textarea id="warningGuidance" rows="3" placeholder="Safety guidance..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Source Bulletin URL</label>
+                <input type="text" id="warningSourceUrl" placeholder="https://example.org/bulletin">
+            </div>
+            <button onclick="createWarning()">Create Official Warning</button>
+            <div id="warningResults" class="results"></div>
+
+            <h2>Translations</h2>
+            <div class="form-group">
+                <label>Warning ID</label>
+                <input type="text" id="translateWarningId" placeholder="UUID">
+            </div>
+            <div class="form-group">
+                <label>Target Language</label>
+                <input type="text" id="translateLanguage" value="en">
+            </div>
+            <button onclick="translateWarning()">Translate Warning</button>
+            <div id="translationResult" class="results"></div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        let apiKey = localStorage.getItem('oshi_api_key') || '';
+
+        function saveApiKey() {
+            const input = document.getElementById('apiKeyInput');
+            apiKey = input.value.trim();
+            if (apiKey) {
+                localStorage.setItem('oshi_api_key', apiKey);
+                input.value = '';
+                document.getElementById('apiNotice').style.display = 'none';
+                showTab('dashboard');
+            } else {
+                alert('Please enter a valid API key');
+            }
+        }
+
+        function getAuthHeaders() {
+            return apiKey ? { 'Authorization': 'Bearer ' + apiKey } : {};
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+
+        async function apiRequest(path, options = {}) {
+            const notice = document.getElementById('apiNotice');
+            if (!apiKey) {
+                notice.style.display = 'block';
+                throw new Error('No API key');
+            }
+            notice.style.display = 'none';
+            const res = await fetch(API_BASE + path, {
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders(), ...options.headers },
+                ...options,
+            });
+            if (res.status === 401) {
+                notice.style.display = 'block';
+                throw new Error('Unauthorized - invalid API key');
+            }
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error('API error ' + res.status + ': ' + text);
+            }
+            return res.json();
+        }
+
+        async function loadDashboard() {
+            try {
+                const pubs = await apiRequest('/api/v1/publications?limit=5');
+                const pubsEl = document.getElementById('dashboardPublications');
+                pubsEl.innerHTML = '';
+                if (pubs.results && pubs.results.length === 0) {
+                    pubsEl.innerHTML = '<div class="empty">No publications yet.</div>';
+                } else {
+                    (pubs.results || []).forEach(p => {
+                        pubsEl.innerHTML += resultItemHtml(p);
+                    });
+                }
+            } catch (e) {
+                document.getElementById('dashboardPublications').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+
+            try {
+                const events = await apiRequest('/api/v1/crisis/events?limit=5');
+                const eventsEl = document.getElementById('dashboardEvents');
+                eventsEl.innerHTML = '';
+                if (events.length === 0) {
+                    eventsEl.innerHTML = '<div class="empty">No crisis events yet.</div>';
+                } else {
+                    events.forEach(e => {
+                        eventsEl.innerHTML += '<div class="result-item event-type-' + (e.event_type || 'unknown') + '">' +
+                            '<div class="result-title">' + escapeHtml(e.title) + '</div>' +
+                            '<div class="result-meta">' + (e.event_type || 'unknown') + ' • ' + e.verification_status + '</div>' +
+                            '</div>';
+                    });
+                }
+            } catch (e) {
+                document.getElementById('dashboardEvents').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+
+        function resultItemHtml(p) {
+            return '<div class="result-item">' +
+                '<div class="result-title">' + escapeHtml(p.title) + '</div>' +
+                '<div class="result-meta">' + (p.source_name || 'unknown') + ' • ' + (p.source_id || '') + '</div>' +
+                '<a href="' + escapeHtml(p.source_url || '#') + '" class="result-source" target="_blank">Open original source</a>' +
+                '</div>';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function searchPublications() {
+            const q = document.getElementById('researchQuery').value.trim();
+            const source = document.getElementById('researchSource').value;
+            const limit = document.getElementById('researchLimit').value;
+            if (!q) { alert('Enter a search topic'); return; }
+            const body = { q: q, limit: parseInt(limit) };
+            if (source) body.source = source;
+            try {
+                const res = await apiRequest('/api/v1/publications/search', {
+                    method: 'POST',
+                    body: JSON.stringify(body),
+                });
+                showSearchResults(res);
+            } catch (e) {
+                document.getElementById('researchResults').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+
+        async function searchStoredPublications() {
+            const q = document.getElementById('researchQuery').value.trim();
+            const limit = document.getElementById('researchLimit').value;
+            const url = '/api/v1/publications?q=' + encodeURIComponent(q) + '&limit=' + limit;
+            try {
+                const res = await apiRequest(url);
+                showSearchResults(res);
+            } catch (e) {
+                document.getElementById('researchResults').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+
+        function showSearchResults(res) {
+            const el = document.getElementById('researchResults');
+            el.innerHTML = '';
+            if (!res.results || res.results.length === 0) {
+                el.innerHTML = '<div class="empty">No results.</div>';
+                return;
+            }
+            res.results.forEach(p => {
+                el.innerHTML += resultItemHtml(p);
+            });
+        }
+
+        async function loadCrisisEvents() {
+            const type = document.getElementById('crisisType').value;
+            const verif = document.getElementById('crisisVerification').value;
+            let url = '/api/v1/crisis/events?limit=50';
+            if (type) url += '&event_type=' + encodeURIComponent(type);
+            if (verif) url += '&verification_status=' + encodeURIComponent(verif);
+            try {
+                const events = await apiRequest(url);
+                const el = document.getElementById('crisisEvents');
+                el.innerHTML = '';
+                if (events.length === 0) {
+                    el.innerHTML = '<div class="empty">No events.</div>';
+                } else {
+                    events.forEach(e => {
+                        el.innerHTML += '<div class="result-item event-type-' + (e.event_type || 'unknown') + '">' +
+                            '<div class="result-title">' + escapeHtml(e.title) + '</div>' +
+                            '<div class="result-meta">' + e.event_type + ' • Status: ' + e.status + ' • Verification: <span class="badge badge-' + e.verification_status.toLowerCase().replace('_', '-') + '">' + e.verification_status + '</span></div>' +
+                            (e.reported_impact ? '<div class="result-meta">Impact: ' + escapeHtml(e.reported_impact) + '</div>' : '') +
+                            '</div>';
+                    });
+                }
+            } catch (e) {
+                document.getElementById('crisisEvents').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+
+        async function loadTimeline() {
+            try {
+                const timeline = await apiRequest('/api/v1/crisis/timeline?limit=20');
+                const el = document.getElementById('crisisTimeline');
+                el.style.display = 'block';
+                el.innerHTML = '';
+                if (timeline.length === 0) {
+                    el.innerHTML = '<div class="empty">No timeline events.</div>';
+                } else {
+                    timeline.forEach(e => {
+                        el.innerHTML += '<div class="result-item">' +
+                            '<div class="result-title">' + escapeHtml(e.title) + '</div>' +
+                            '<div class="result-meta">' + e.event_type + ' • ' + e.verification_status + ' • ' + (e.started_at || e.created_at) + '</div>' +
+                            '</div>';
+                    });
+                }
+            } catch (e) {
+                document.getElementById('crisisTimeline').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+
+        async function createWarning() {
+            const params = new URLSearchParams();
+            params.set('issuer', document.getElementById('warningIssuer').value.trim());
+            params.set('warning_level', document.getElementById('warningLevel').value.trim());
+            params.set('severity', document.getElementById('warningSeverity').value.trim());
+            const loc = document.getElementById('warningLocations').value.trim();
+            if (loc) params.set('affected_locations', loc);
+            const guid = document.getElementById('warningGuidance').value.trim();
+            if (guid) params.set('preparedness_guidance', guid);
+            const src = document.getElementById('warningSourceUrl').value.trim();
+            if (src) params.set('source_bulletin_url', src);
+            if (!params.get('issuer') || !params.get('warning_level') || !params.get('severity')) {
+                alert('Issuer, warning level, and severity are required');
+                return;
+            }
+            try {
+                const res = await apiRequest('/api/v1/warnings/official?' + params.toString(), { method: 'POST' });
+                const el = document.getElementById('warningResults');
+                el.innerHTML = '<div class="result-item warning-card active-warning">' +
+                    '<div class="result-title">' + escapeHtml(res.issuer) + '</div>' +
+                    '<div class="result-meta">Level: ' + escapeHtml(res.warning_level) + ' • Severity: ' + escapeHtml(res.severity) + '</div>' +
+                    '</div>';
+            } catch (e) {
+                document.getElementById('warningResults').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+
+        async function translateWarning() {
+            const wid = document.getElementById('translateWarningId').value.trim();
+            const lang = document.getElementById('translateLanguage').value.trim();
+            if (!wid || !lang) { alert('Enter warning ID and language'); return; }
+            try {
+                const res = await apiRequest('/api/v1/warnings/translations', {
+                    method: 'POST',
+                    body: JSON.stringify({ warning_id: wid, target_language: lang }),
+                });
+                const el = document.getElementById('translationResult');
+                el.innerHTML = '<div class="result-item">' +
+                    '<div class="result-title">Translation (' + escapeHtml(res.target_language) + ')</div>' +
+                    '<div class="result-meta">Original: ' + escapeHtml(res.original_text) + '</div>' +
+                    '<div class="result-meta">Translated: ' + escapeHtml(res.translated_text) + '</div>' +
+                    '</div>';
+            } catch (e) {
+                document.getElementById('translationResult').innerHTML = '<div class="error">' + e.message + '</div>';
+            }
+        }
+
+        // Initialize
+        if (apiKey) {
+            document.getElementById('apiNotice').style.display = 'none';
+        }
+        loadDashboard();
+    </script>
+</body>
+</html>

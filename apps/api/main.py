@@ -8,8 +8,11 @@ Foundation endpoints:
 """
 
 import logging
+from pathlib import Path
 
 from fastapi import Depends, FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from apps.api.errors import register_error_handlers
 from apps.api.routes.auth import router as auth_router
@@ -77,6 +80,15 @@ def create_app() -> FastAPI:
             "database": "connected" if db_ok else "disconnected",
             "database_error": db_error,
         }
+
+    # Serve frontend MVP
+    web_dir = Path(__file__).resolve().parent.parent.parent / "web"
+    if web_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(web_dir)), name="static")
+
+        @app.get("/", response_class=FileResponse)
+        async def frontend_root():
+            return FileResponse(str(web_dir / "index.html"))
 
     return app
 

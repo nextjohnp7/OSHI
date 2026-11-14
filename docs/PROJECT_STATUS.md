@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 0 — Foundation and Reconnaissance (Auth middleware + protected routes, DONE)
+PHASE 0 — Foundation and Reconnaissance (Sprint 7a: Crisis/Warning API, DONE)
 
 ## Completed
 
@@ -11,7 +11,7 @@ PHASE 0 — Foundation and Reconnaissance (Auth middleware + protected routes, D
 - `pyproject.toml`, `.env.example`, `.gitignore`
 - `packages/core/config.py` — Pydantic Settings (DATABASE_URL, LLM provider, etc.)
 - `packages/core/database.py` — SQLAlchemy engine + session factory + `get_db()`
-- `packages/core/models.py` — `Publication`, `Organization`, `User`, `OrganizationMember`, `APIKey` models (provenance + multi-tenant auth)
+- `packages/core/models.py` — `Publication`, `Organization`, `User`, `OrganizationMember`, `APIKey`, `DisasterEvent`, `GeographicRegion`, `EventLocation`, `EventReport`, `OfficialWarning`, `SituationReport` models (provenance + multi-tenant auth + crisis intelligence)
 - `packages/core/auth.py` — API key hashing, verification, `require_api_key` / `get_current_user` dependencies
 - `packages/core/logging.py` — structured logging (JSON/plain)
 - `alembic.ini` + `alembic/env.py` — configured to read DATABASE_URL from OSHI settings
@@ -23,6 +23,7 @@ PHASE 0 — Foundation and Reconnaissance (Auth middleware + protected routes, D
 - `packages/connectors/scientific/schemas.py` — `NormalizedPublication` schema
 - `apps/api/main.py` — FastAPI app with `/health`, logging + error handlers wired
 - `apps/api/routes/publications.py` — `POST /search` (with `source` param), `GET /`, `GET /{id}`
+- `apps/api/routes/crisis.py` — `GET/POST /crisis/events`, `GET /crisis/timeline`, `GET /crisis/verification`, `GET/POST /warnings/official`, `POST /warnings/translations`, `GET /warnings/preparedness`
 - `apps/api/schemas.py` — `PublicationOut`, `SearchRequest` (with `source`), `SearchResponse`, `HealthOut`
 - `apps/api/service.py` — `PublicationService` multi-source (connectors dict, default_source, upsert/dedup)
 - `apps/api/errors.py` — FastAPI exception handlers (SQLAlchemy, Pydantic, generic) with request ID
@@ -39,7 +40,7 @@ None.
 
 ## Tests Executed
 
-- `uv run pytest tests/ -v` — **73 passed, 0 failed**
+- `uv run pytest tests/ -v` — **81 passed, 0 failed**
 
 ## Test Results
 
@@ -58,6 +59,7 @@ All 64 tests pass:
 - test_pubmed_connector.py: 5 passed
 - test_auth_models.py: 4 passed
 - test_auth.py: 7 passed
+- test_crisis_warning.py: 8 passed
 
 Live API verification:
 - OpenAlex: search + normalize + store + list (verified earlier)
@@ -116,6 +118,11 @@ None.
 - `tests/unit/test_pubmed_connector.py` (new)
 - `tests/unit/test_research_agent.py` (new)
 - `tests/unit/test_auth_models.py` (new)
+- `tests/unit/test_auth.py` (new)
+- `tests/unit/test_crisis_warning.py` (new)
+- `apps/api/routes/crisis.py` (new)
+- `packages/core/models.py` (crisis models added)
+- `alembic/versions/dfdeecf59013_add_disaster_intelligence_models_.py` (new migration)
 - `Dockerfile` (new)
 - `docker-compose.yml` (new)
 - `.env.example` (connector credential variables added)
@@ -142,6 +149,7 @@ None.
 - `2e51ee3` — feat(sprint6): integrate arxiv and pubmed into research agent discovery
 - `09ab1ff` — feat(docker): containerize for production with PostgreSQL + pgvector
 - `7d4d0f5` — feat(auth): API key / mailto support for all scientific connectors
+- `9a7ad4a` — feat(sprint7a): Crisis Intelligence and Early Warning API endpoints
 
 ## Risks
 
