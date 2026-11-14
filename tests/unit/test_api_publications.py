@@ -42,7 +42,9 @@ class FakeConnector:
 @pytest.fixture
 def api_client(tmp_path):
     db_file = tmp_path / "test_api.sqlite"
-    engine = create_engine(f"sqlite:///{db_file}", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        f"sqlite:///{db_file}", connect_args={"check_same_thread": False}
+    )
     Base.metadata.create_all(engine)
     session = Session(engine)
     service._session = session
@@ -173,4 +175,3 @@ def test_search_endpoint_crossref_source(api_client):
     assert record["source_url"] == "https://doi.org/10.1000/crossref.2024.002"
     assert record["abstract"] == "Crossref abstract here."
     assert record["license"] == "https://creativecommons.org/licenses/by/4.0/"
-

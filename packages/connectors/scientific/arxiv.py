@@ -15,14 +15,19 @@ Fields retrieved per entry:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from hashlib import sha256
 from typing import Any
 import re
 import xml.etree.ElementTree as ET
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from packages.connectors.scientific.schemas import NormalizedPublication
 
@@ -50,7 +55,9 @@ def _arxiv_id(url: str | None) -> str:
 
 
 def _content_hash(normalized: dict[str, Any]) -> str:
-    payload = f"{normalized['source_name']}:{normalized['source_id']}:{normalized['title']}"
+    payload = (
+        f"{normalized['source_name']}:{normalized['source_id']}:{normalized['title']}"
+    )
     return sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -81,7 +88,7 @@ class ArxivConnector:
     )
     async def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
-            "search_query": f'all:{query}',
+            "search_query": f"all:{query}",
             "start": 0,
             "max_results": max(1, min(limit, 100)),
         }
@@ -130,7 +137,9 @@ class ArxivConnector:
                     "summary": " ".join((summary_elem.text or "").split())
                     if summary_elem is not None
                     else "",
-                    "published": published_elem.text if published_elem is not None else "",
+                    "published": published_elem.text
+                    if published_elem is not None
+                    else "",
                     "updated": updated_elem.text if updated_elem is not None else "",
                     "authors": authors,
                     "links": links,

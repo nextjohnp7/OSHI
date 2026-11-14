@@ -1,7 +1,5 @@
 """Document API routes (Sprint 3)."""
 
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, BackgroundTasks, Query
 
 from apps.api.schemas import (

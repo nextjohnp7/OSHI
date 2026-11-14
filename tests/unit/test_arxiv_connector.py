@@ -1,7 +1,5 @@
 """Unit tests for arXiv connector (no network, normalizes mock Atom entries)."""
 
-import pytest
-
 from packages.connectors.scientific.arxiv import ArxivConnector
 
 
@@ -13,8 +11,16 @@ MOCK_ENTRY = {
     "updated": "2023-02-01T00:00:00Z",
     "authors": [{"name": "Alice Smith"}, {"name": "Bob Jones"}],
     "links": [
-        {"href": "http://arxiv.org/abs/2301.00001v1", "rel": "alternate", "type": "text/html"},
-        {"href": "http://arxiv.org/pdf/2301.00001v1", "rel": "related", "type": "application/pdf"},
+        {
+            "href": "http://arxiv.org/abs/2301.00001v1",
+            "rel": "alternate",
+            "type": "text/html",
+        },
+        {
+            "href": "http://arxiv.org/pdf/2301.00001v1",
+            "rel": "related",
+            "type": "application/pdf",
+        },
     ],
 }
 
@@ -26,7 +32,10 @@ def test_arxiv_normalize_basic():
     assert normalized.source_name == "arxiv"
     assert normalized.source_id == "2301.00001"
     assert normalized.title == "Climate Change and Crop Yields: A Meta-Analysis"
-    assert normalized.abstract == "Rising temperatures reduce maize yields by 15% in tropical regions."
+    assert (
+        normalized.abstract
+        == "Rising temperatures reduce maize yields by 15% in tropical regions."
+    )
     assert len(normalized.authors) == 2
     assert normalized.authors[0]["name"] == "Alice Smith"
     assert normalized.authors[1]["name"] == "Bob Jones"

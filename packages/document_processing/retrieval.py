@@ -73,7 +73,7 @@ class PgVectorRetriever:
         a ``similarity`` key (1 - cosine distance).
         """
         try:
-            from pgvector.sqlalchemy import Vector  # type: ignore
+            from pgvector.sqlalchemy import Vector  # type: ignore  # noqa: F401
         except ImportError:  # pragma: no cover - pgvector not installed
             return []
 
@@ -110,4 +110,3 @@ class PgVectorRetriever:
                 }
             )
         return rows
-

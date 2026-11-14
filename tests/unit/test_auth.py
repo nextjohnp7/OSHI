@@ -1,9 +1,6 @@
 """Unit tests for authentication (no network)."""
 
-import pytest
 from fastapi.testclient import TestClient
-
-from apps.api.main import create_app
 
 
 def _bootstrap(client: TestClient) -> str:
@@ -82,7 +79,6 @@ def test_create_and_list_api_keys(client: TestClient):
     data = resp.json()
     assert data["api_key"].startswith("oshi_")
     assert data["name"] == "Second key"
-    second_key = data["api_key"]
 
     # List keys
     resp = client.get("/api/v1/auth/keys", headers=_auth_headers(api_key))

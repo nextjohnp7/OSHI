@@ -32,7 +32,6 @@ async def discover_publications(state: ResearchState) -> dict[str, Any]:
     - ``run_id`` = generated UUID if not already set
     """
     query = state.get("query", "")
-    topic = state.get("topic", "")
     max_publications = state.get("max_publications", 10)
     run_id = state.get("run_id") or str(uuid.uuid4())
 
@@ -117,7 +116,11 @@ async def retrieve_evidence(state: ResearchState) -> dict[str, Any]:
         title = pub.get("title", "") or ""
 
         # Split abstract into sentences as candidate evidence snippets
-        sentences = [s.strip() for s in abstract.replace("? ", "?\n").replace(". ", ".\n").split("\n") if s.strip()]
+        sentences = [
+            s.strip()
+            for s in abstract.replace("? ", "?\n").replace(". ", ".\n").split("\n")
+            if s.strip()
+        ]
 
         scored: list[tuple[float, str]] = []
         for sentence in sentences:
@@ -191,7 +194,9 @@ def generate_report(state: ResearchState) -> dict[str, Any]:
         lines.append(f"- **Relevance Score:** {relevance:.3f}")
         abstract = pub.get("abstract", "")
         if abstract:
-            lines.append(f"- **Abstract:** {abstract[:500]}{'...' if len(abstract) > 500 else ''}")
+            lines.append(
+                f"- **Abstract:** {abstract[:500]}{'...' if len(abstract) > 500 else ''}"
+            )
         lines.append("")
 
     lines.append("## Evidence")

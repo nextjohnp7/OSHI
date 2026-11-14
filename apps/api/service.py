@@ -22,7 +22,7 @@ from packages.connectors.scientific.openalex import OpenAlexConnector
 from packages.connectors.scientific.pubmed import PubMedConnector
 from packages.connectors.scientific.schemas import NormalizedPublication
 from packages.core.config import get_settings
-from packages.core.database import Base, get_session_local
+from packages.core.database import get_session_local
 from packages.core.models import Publication
 
 
@@ -54,9 +54,7 @@ class PublicationService:
         connector = self.connectors.get(source)
         if connector is None:
             available = ", ".join(sorted(self.connectors))
-            raise ValueError(
-                f"Unknown source '{source}'. Available: {available}"
-            )
+            raise ValueError(f"Unknown source '{source}'. Available: {available}")
         return connector
 
     def _get_db(self):
@@ -124,9 +122,7 @@ class PublicationService:
             if own_session:
                 db.close()
 
-    def search_stored(
-        self, q: str | None, limit: int = 10
-    ) -> list[Publication]:
+    def search_stored(self, q: str | None, limit: int = 10) -> list[Publication]:
         db = self._get_db()
         own_session = self._session is None
         try:
@@ -143,4 +139,3 @@ class PublicationService:
         finally:
             if own_session:
                 db.close()
-

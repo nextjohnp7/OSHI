@@ -15,7 +15,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from packages.core.database import Base
 
@@ -36,14 +36,14 @@ class Publication(Base):
     source_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     abstract: Mapped[str | None] = mapped_column(Text, nullable=True)
-    authors: Mapped[list[dict[str, Any]] | None] = mapped_column(
-        JSON, nullable=True
-    )
+    authors: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     publication_date: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
     source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    content_hash: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
     license: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -76,7 +76,9 @@ class Organization(Base):
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    slug: Mapped[str] = mapped_column(
+        String(100), nullable=False, unique=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -136,7 +138,9 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    email: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=True, index=True
+    )
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_superuser: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -267,10 +271,10 @@ class GeographicRegion(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     region_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    country_code: Mapped[str | None] = mapped_column(String(3), nullable=True, index=True)
-    boundary_geojson: Mapped[dict[str, Any] | None] = mapped_column(
-        JSON, nullable=True
+    country_code: Mapped[str | None] = mapped_column(
+        String(3), nullable=True, index=True
     )
+    boundary_geojson: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -338,7 +342,9 @@ class EventReport(Base):
     event_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     reported_impact: Mapped[str | None] = mapped_column(Text, nullable=True)
     geographic_scope: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    content_hash: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
     verification_status: Mapped[str] = mapped_column(
         String(30), nullable=False, default="UNVERIFIED", index=True
     )
@@ -392,7 +398,9 @@ class OfficialWarning(Base):
     affected_locations: Mapped[str | None] = mapped_column(Text, nullable=True)
     preparedness_guidance: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_bulletin_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

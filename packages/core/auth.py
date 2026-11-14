@@ -20,7 +20,6 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import datetime, timezone
-from typing import Any
 
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy import select
@@ -54,12 +53,18 @@ def verify_api_key(key: str, db: Session) -> User | None:
 
     # Look up candidate keys by prefix first (fast index lookup), then
     # compare full hashes in constant time.
-    candidates = db.execute(
-        select(APIKey).where(APIKey.key_prefix == prefix, APIKey.is_active == True)  # noqa: E712
-    ).scalars().all()
+    candidates = (
+        db.execute(
+            select(APIKey).where(APIKey.key_prefix == prefix, APIKey.is_active == True)  # noqa: E712
+        )
+        .scalars()
+        .all()
+    )
 
     for candidate in candidates:
-        if candidate.expires_at is not None and candidate.expires_at < datetime.now(timezone.utc):
+        if candidate.expires_at is not None and candidate.expires_at < datetime.now(
+            timezone.utc
+        ):
             continue
         if secrets.compare_digest(candidate.key_hash, key_hash):
             # Record usage.

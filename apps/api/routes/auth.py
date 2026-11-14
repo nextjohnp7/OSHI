@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -25,7 +25,6 @@ from apps.api.schemas import (
     APIKeyCreatedResponse,
     APIKeyCreateRequest,
     APIKeyOut,
-    APIKeyRevokeRequest,
 )
 from packages.core.auth import (
     get_api_key,
@@ -76,7 +75,9 @@ def bootstrap(
     db.add(user)
     db.flush()
 
-    org = Organization(name=f"{user.name or user.email}'s Organization", slug=f"org-{user.id}")
+    org = Organization(
+        name=f"{user.name or user.email}'s Organization", slug=f"org-{user.id}"
+    )
     db.add(org)
     db.flush()
 
@@ -150,7 +151,9 @@ def create_api_key(
 
     expires_at = None
     if request.expires_in_days is not None:
-        expires_at = datetime.now(timezone.utc) + timedelta(days=request.expires_in_days)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            days=request.expires_in_days
+        )
 
     plain_key = _generate_api_key()
     key_hash = hash_api_key(plain_key)
@@ -189,9 +192,11 @@ def list_api_keys(
     db: Session = Depends(get_db),
 ) -> list[APIKeyOut]:
     """List the authenticated user's API keys (prefix only; plaintext never returned)."""
-    keys = db.execute(
-        select(APIKeyModel).where(APIKeyModel.user_id == current_user.id)
-    ).scalars().all()
+    keys = (
+        db.execute(select(APIKeyModel).where(APIKeyModel.user_id == current_user.id))
+        .scalars()
+        .all()
+    )
     return [APIKeyOut.model_validate(k) for k in keys]
 
 

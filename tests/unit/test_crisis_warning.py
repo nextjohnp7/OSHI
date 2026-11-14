@@ -1,11 +1,8 @@
 """Unit tests for Crisis Intelligence and Early Warning API routes (no network)."""
 
-from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
-
-from apps.api.main import create_app
 
 
 def _bootstrap(client: TestClient) -> str:

@@ -22,7 +22,12 @@ from hashlib import sha256
 from typing import Any
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from packages.connectors.scientific.schemas import NormalizedPublication
 
@@ -73,7 +78,9 @@ def _work_id(work: dict[str, Any]) -> str:
 
 
 def _content_hash(normalized: dict[str, Any]) -> str:
-    payload = f"{normalized['source_name']}:{normalized['source_id']}:{normalized['title']}"
+    payload = (
+        f"{normalized['source_name']}:{normalized['source_id']}:{normalized['title']}"
+    )
     return sha256(payload.encode("utf-8")).hexdigest()
 
 

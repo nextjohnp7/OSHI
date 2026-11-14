@@ -296,7 +296,3 @@ class TaskStatusOut(BaseModel):
     completed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
-
-
-
-

@@ -35,7 +35,9 @@ def client() -> Generator[TestClient, None, None]:
     os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
 
     # Create all tables in the temp database.
-    engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        f"sqlite:///{db_path}", connect_args={"check_same_thread": False}
+    )
     Base.metadata.create_all(engine)
     engine.dispose()
 

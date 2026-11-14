@@ -6,7 +6,6 @@ output for development. All OSHI modules should use ``logging.getLogger(__name__
 
 import logging
 import sys
-from typing import Any
 
 
 def configure_logging(log_level: str = "INFO") -> None:

@@ -88,4 +88,3 @@ def get_publication(publication_id: str):
 
         raise HTTPException(status_code=404, detail="Publication not found")
     return record
-

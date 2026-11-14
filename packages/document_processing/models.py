@@ -6,11 +6,10 @@ semantic (vector) retrieval.
 
 import uuid
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import BLOB, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from packages.core.database import Base
 
@@ -31,7 +30,9 @@ class Document(Base):
     source_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    content_hash: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -84,7 +85,12 @@ class DocumentChunk(Base):
 
     __table_args__ = (
         Index("ix_document_chunks_document", "document_id"),
-        Index("ix_document_chunks_document_index", "document_id", "chunk_index", unique=True),
+        Index(
+            "ix_document_chunks_document_index",
+            "document_id",
+            "chunk_index",
+            unique=True,
+        ),
     )
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid

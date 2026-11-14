@@ -78,9 +78,9 @@ class DocumentService:
                 document.updated_at = datetime.now(timezone.utc)
                 # Remove old chunks.
                 db.execute(
-                    __import__("sqlalchemy").delete(DocumentChunk).where(
-                        DocumentChunk.document_id == document.id
-                    )
+                    __import__("sqlalchemy")
+                    .delete(DocumentChunk)
+                    .where(DocumentChunk.document_id == document.id)
                 )
                 db.flush()
             else:

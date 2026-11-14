@@ -1,7 +1,5 @@
 """Unit tests for PubMed / Europe PMC connector (no network, normalizes mock results)."""
 
-import pytest
-
 from packages.connectors.scientific.pubmed import PubMedConnector
 
 
@@ -28,7 +26,10 @@ def test_pubmed_normalize_basic():
     assert normalized.source_name == "pubmed"
     assert normalized.source_id == "37000001"
     assert normalized.title == "Climate Change Impacts on Global Health"
-    assert normalized.abstract == "This study examines the health impacts of climate change in vulnerable populations."
+    assert (
+        normalized.abstract
+        == "This study examines the health impacts of climate change in vulnerable populations."
+    )
     assert len(normalized.authors) == 3
     assert normalized.authors[0]["name"] == "Smith, Alice"
     assert normalized.publication_date is not None

@@ -1,7 +1,5 @@
 """Unit tests for OpenAlex connector normalization (no network)."""
 
-import pytest
-
 from packages.connectors.scientific.openalex import (
     OpenAlexConnector,
     _reconstruct_abstract,
@@ -51,7 +49,10 @@ def test_normalize_roundtrip():
     assert normalized.source_id == "W2741809807"
     assert normalized.title == "Climate Change: A Test Study"
     assert normalized.abstract == "climate change study"
-    assert normalized.authors == [{"name": "Alice Researcher"}, {"name": "Bob Scientist"}]
+    assert normalized.authors == [
+        {"name": "Alice Researcher"},
+        {"name": "Bob Scientist"},
+    ]
     assert normalized.publication_date is not None
     assert normalized.publication_date.year == 2024
     assert normalized.source_url == "https://example.org/paper"

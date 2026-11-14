@@ -44,9 +44,7 @@ def test_extract_authors():
 
 
 def test_parse_date():
-    assert _parse_date([[2023, 11, 21]]) == datetime(
-        2023, 11, 21, tzinfo=timezone.utc
-    )
+    assert _parse_date([[2023, 11, 21]]) == datetime(2023, 11, 21, tzinfo=timezone.utc)
     assert _parse_date([[2023]]) == datetime(2023, 1, 1, tzinfo=timezone.utc)
     assert _parse_date(None) is None
     assert _parse_date([[]]) is None
@@ -58,7 +56,10 @@ def test_normalize_roundtrip():
     assert normalized.source_name == "crossref"
     assert normalized.source_id == "10.1000/example.2024.001"
     assert normalized.title == "Climate Change and Agriculture"
-    assert normalized.abstract == "This chapter discusses how climate change affects agriculture."
+    assert (
+        normalized.abstract
+        == "This chapter discusses how climate change affects agriculture."
+    )
     assert normalized.authors == [
         {"name": "Andrew Sturman"},
         {"name": "Hervé Quénol"},

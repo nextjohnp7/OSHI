@@ -19,7 +19,9 @@ def _request_id(request: Request) -> str:
     return request.headers.get("x-request-id") or str(uuid.uuid4())
 
 
-def _error_response(status_code: int, message: str, request: Request, detail: str | None = None) -> JSONResponse:
+def _error_response(
+    status_code: int, message: str, request: Request, detail: str | None = None
+) -> JSONResponse:
     body: dict[str, Any] = {
         "error": True,
         "message": message,
@@ -35,9 +37,7 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(SQLAlchemyError)
     async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError):
-        return _error_response(
-            500, "Database error", request, detail=str(exc)
-        )
+        return _error_response(500, "Database error", request, detail=str(exc))
 
     @app.exception_handler(ValidationError)
     async def pydantic_validation_error_handler(request: Request, exc: ValidationError):
@@ -46,13 +46,13 @@ def register_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def fastapi_validation_error_handler(request: Request, exc: RequestValidationError):
+    async def fastapi_validation_error_handler(
+        request: Request, exc: RequestValidationError
+    ):
         return _error_response(
             400, "Invalid request data", request, detail=exc.errors()
         )
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):
-        return _error_response(
-            500, "Internal server error", request
-        )
+        return _error_response(500, "Internal server error", request)

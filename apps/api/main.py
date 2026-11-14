@@ -7,7 +7,6 @@ Foundation endpoints:
 - GET /api/v1/publications/{id} — get a stored publication.
 """
 
-import logging
 from pathlib import Path
 
 from fastapi import Depends, FastAPI

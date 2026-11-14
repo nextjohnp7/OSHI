@@ -26,14 +26,29 @@ from typing import Any
 import re
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from packages.connectors.scientific.schemas import NormalizedPublication
 
 _DATE_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
 _MONTH_NAMES = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
 }
 _DATE_NAMED_RE = re.compile(r"(\d{4})\s+([A-Za-z]{3})\s+(\d{1,2})")
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
@@ -53,7 +68,11 @@ def _parse_date(value: str | None) -> datetime | None:
     match = _DATE_RE.search(value)
     if match:
         try:
-            year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            year, month, day = (
+                int(match.group(1)),
+                int(match.group(2)),
+                int(match.group(3)),
+            )
             return datetime(year, month, day, tzinfo=timezone.utc)
         except ValueError:
             return None
@@ -83,7 +102,9 @@ def _extract_authors(author_string: str | None) -> list[dict[str, str]]:
 
 
 def _content_hash(normalized: dict[str, Any]) -> str:
-    payload = f"{normalized['source_name']}:{normalized['source_id']}:{normalized['title']}"
+    payload = (
+        f"{normalized['source_name']}:{normalized['source_id']}:{normalized['title']}"
+    )
     return sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -139,9 +160,13 @@ class PubMedConnector:
         # Prefer DOI as a stable URL; fall back to Europe PMC article URL.
         source_url = item.get("doi")
         if not source_url:
-            source_url = f"https://europepmc.org/article/{source_id}" if source_id else None
+            source_url = (
+                f"https://europepmc.org/article/{source_id}" if source_id else None
+            )
 
-        license_str = item.get("license") if isinstance(item.get("license"), str) else None
+        license_str = (
+            item.get("license") if isinstance(item.get("license"), str) else None
+        )
 
         normalized = NormalizedPublication(
             source_name="pubmed",

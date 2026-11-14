@@ -86,7 +86,9 @@ def _hash_embed(text: str, dim: int) -> list[float]:
     return vec
 
 
-def embed_text(text: str, dim: int = DEFAULT_DIM, model_name: str = DEFAULT_MODEL) -> list[float]:
+def embed_text(
+    text: str, dim: int = DEFAULT_DIM, model_name: str = DEFAULT_MODEL
+) -> list[float]:
     """Generate an embedding vector for a single text.
 
     Uses sentence-transformers when available; falls back to the hashing trick.

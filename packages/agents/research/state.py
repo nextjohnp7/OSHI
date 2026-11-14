@@ -4,11 +4,12 @@ The state tracks the progress of a research run from publication discovery
 through evidence retrieval to report generation.
 """
 
-from typing import Any, List, Optional, TypedDict
+from typing import List, Optional, TypedDict
 
 
 class PublicationResult(TypedDict):
     """A single publication discovered during research."""
+
     id: str
     title: str
     authors: List[str]
@@ -21,6 +22,7 @@ class PublicationResult(TypedDict):
 
 class EvidenceItem(TypedDict):
     """A piece of evidence extracted from a publication."""
+
     publication_id: str
     publication_title: str
     quote: str

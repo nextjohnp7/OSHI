@@ -35,10 +35,7 @@ from sqlalchemy.orm import Session
 from apps.api.schemas import (
     CrisisEventCreateRequest,
     DisasterEventOut,
-    EventLocationOut,
-    EventReportOut,
     OfficialWarningOut,
-    SituationReportOut,
     WarningTranslationOut,
     WarningTranslationRequest,
 )
@@ -46,11 +43,7 @@ from packages.core.auth import require_api_key
 from packages.core.database import get_db
 from packages.core.models import (
     DisasterEvent,
-    EventLocation,
-    EventReport,
-    GeographicRegion,
     OfficialWarning,
-    SituationReport,
 )
 
 router = APIRouter(prefix="/api/v1/crisis", tags=["crisis"])
@@ -145,11 +138,13 @@ def get_timeline(
     current_user=Depends(require_api_key),
 ) -> list[dict[str, Any]]:
     """Chronological timeline of disaster events (Part 3.4.D)."""
-    events = db.execute(
-        select(DisasterEvent)
-        .order_by(DisasterEvent.created_at.desc())
-        .limit(limit)
-    ).scalars().all()
+    events = (
+        db.execute(
+            select(DisasterEvent).order_by(DisasterEvent.created_at.desc()).limit(limit)
+        )
+        .scalars()
+        .all()
+    )
     return [
         {
             "id": str(e.id),
@@ -298,7 +293,9 @@ def translate_warning(
     timestamp; real machine translation should be wired behind this.
     """
     warning = db.execute(
-        select(OfficialWarning).where(OfficialWarning.id == translation_request.warning_id)
+        select(OfficialWarning).where(
+            OfficialWarning.id == translation_request.warning_id
+        )
     ).scalar_one_or_none()
     if warning is None:
         raise HTTPException(status_code=404, detail="Warning not found")
@@ -329,12 +326,16 @@ def preparedness_guidance(
     Returns approved preparedness information only; no evacuation
     instructions are generated automatically.
     """
-    warnings = db.execute(
-        select(OfficialWarning).where(
-            OfficialWarning.is_active == True,  # noqa: E712
-            OfficialWarning.preparedness_guidance.isnot(None),
+    warnings = (
+        db.execute(
+            select(OfficialWarning).where(
+                OfficialWarning.is_active == True,  # noqa: E712
+                OfficialWarning.preparedness_guidance.isnot(None),
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [
         {
             "id": str(w.id),

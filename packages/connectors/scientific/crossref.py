@@ -24,7 +24,12 @@ from hashlib import sha256
 from typing import Any
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from packages.connectors.scientific.schemas import NormalizedPublication
 
