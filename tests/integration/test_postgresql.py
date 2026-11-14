@@ -16,6 +16,11 @@ from sqlalchemy import create_engine, text
 
 from apps.api.main import create_app
 from packages.core.config import get_settings
+from packages.core.database import Base
+
+# Import all models so they are registered with Base.metadata.
+import packages.core.models  # noqa: F401
+import packages.document_processing.models  # noqa: F401
 
 DATABASE_URL = os.environ.get(
     "OSHI_TEST_DATABASE_URL", "postgresql://oshi:oshi@localhost:5432/oshi_test"
@@ -47,6 +52,9 @@ def pg_client() -> Generator[TestClient, None, None]:
     get_settings.cache_clear()
 
     engine = create_engine(DATABASE_URL)
+    # Buat semua tabel langsung (bypass Alembic untuk keandalan test).
+    Base.metadata.create_all(engine)
+
     # Coba pasang ekstensi pgvector (abaikan jika tidak tersedia).
     try:
         with engine.connect() as conn:
