@@ -404,6 +404,15 @@ class OfficialWarning(Base):
     verification_status: Mapped[str] = mapped_column(
         String(30), nullable=False, default="UNVERIFIED", index=True
     )
+    verified_by: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

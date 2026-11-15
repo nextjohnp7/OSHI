@@ -241,6 +241,25 @@ class OfficialWarningOut(BaseModel):
     source_bulletin_url: str | None = None
     is_active: bool
     verification_status: str
+    verified_by: UUID | None = None
+    verified_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class WarningVerificationRequest(BaseModel):
+    warning_id: UUID
+    notes: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class WarningVerificationOut(BaseModel):
+    warning_id: UUID
+    verification_status: str
+    verified_by: UUID | None = None
+    verified_at: datetime | None = None
+    notes: str | None = None
 
     model_config = {"from_attributes": True}
 

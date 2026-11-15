@@ -117,6 +117,23 @@ def require_api_key(
     return user
 
 
+def require_admin(
+    current_user=Depends(require_api_key),
+) -> User:
+    """FastAPI dependency that requires an admin (superuser) account.
+
+    Returns the authenticated ``User`` if they are a superuser, raises 403
+    otherwise. Use this for administrative actions such as warning
+    verification, user management, and system configuration.
+    """
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required.",
+        )
+    return current_user
+
+
 def get_current_user(
     api_key: str | None = Depends(get_api_key),
     db: Session = Depends(get_db),
@@ -141,5 +158,6 @@ __all__ = [
     "verify_api_key",
     "get_api_key",
     "require_api_key",
+    "require_admin",
     "get_current_user",
 ]

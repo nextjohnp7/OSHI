@@ -11,13 +11,24 @@ operational monitoring and debugging (Part 10 /api/v1/admin/).
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from fastapi.routing import APIRoute
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from packages.core.auth import require_api_key
+from packages.core.auth import require_admin, require_api_key
 from packages.core.config import get_settings
+from packages.core.database import get_db
+from packages.core.models import OfficialWarning
+
+from apps.api.schemas import (
+    WarningVerificationOut,
+    WarningVerificationRequest,
+)
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -93,3 +104,44 @@ def admin_routes(
                 }
             )
     return sorted(out, key=lambda r: r["path"])
+
+
+@router.post(
+    "/warnings/{warning_id}/verify",
+    response_model=WarningVerificationOut,
+    status_code=status.HTTP_200_OK,
+    summary="Verify an official warning",
+    description="Verify an official warning (transition UNVERIFIED -> VERIFIED). "
+    "Requires admin privileges. Records who verified and when (audit trail).",
+)
+def verify_warning(
+    warning_id: UUID = Path(..., description="ID of the warning to verify"),
+    request: WarningVerificationRequest | None = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+) -> WarningVerificationOut:
+    """Verify an official warning (Part 3.5 UEFI authorization).
+
+    Only superusers can transition a warning from UNVERIFIED to VERIFIED.
+    The verifying user and timestamp are recorded for audit purposes.
+    """
+    warning = db.execute(
+        select(OfficialWarning).where(OfficialWarning.id == warning_id)
+    ).scalar_one_or_none()
+    if warning is None:
+        raise HTTPException(status_code=404, detail="Warning not found")
+
+    warning.verification_status = "VERIFIED"
+    warning.verified_by = current_user.id
+    warning.verified_at = datetime.now(timezone.utc)
+    db.add(warning)
+    db.commit()
+    db.refresh(warning)
+
+    return WarningVerificationOut(
+        warning_id=warning.id,
+        verification_status=warning.verification_status,
+        verified_by=warning.verified_by,
+        verified_at=warning.verified_at,
+        notes=request.notes if request else None,
+    )
