@@ -248,7 +248,7 @@ class OfficialWarningOut(BaseModel):
 
 
 class WarningVerificationRequest(BaseModel):
-    warning_id: UUID
+    warning_id: UUID | None = None
     notes: str | None = None
 
     model_config = {"from_attributes": True}

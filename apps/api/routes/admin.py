@@ -131,9 +131,16 @@ def verify_warning(
     if warning is None:
         raise HTTPException(status_code=404, detail="Warning not found")
 
+    if warning.verification_status == "VERIFIED":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Warning is already verified.",
+        )
+
     warning.verification_status = "VERIFIED"
     warning.verified_by = current_user.id
     warning.verified_at = datetime.now(timezone.utc)
+    warning.verification_notes = request.notes if request else None
     db.add(warning)
     db.commit()
     db.refresh(warning)
@@ -143,5 +150,5 @@ def verify_warning(
         verification_status=warning.verification_status,
         verified_by=warning.verified_by,
         verified_at=warning.verified_at,
-        notes=request.notes if request else None,
+        notes=warning.verification_notes,
     )

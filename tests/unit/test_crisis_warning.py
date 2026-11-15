@@ -226,3 +226,132 @@ def test_protected_without_key(client: TestClient):
 
     resp = client.get("/api/v1/warnings/official")
     assert resp.status_code == 401, resp.text
+
+
+def test_verify_warning_admin_with_notes_and_no_reverify(client: TestClient):
+    """Admin can verify an UNVERIFIED warning; re-verify returns 409; notes are stored."""
+    api_key = _bootstrap(client)
+    headers = _auth_headers(api_key)
+
+    # Buat warning UNVERIFIED via API.
+    resp = client.post(
+        "/api/v1/warnings/official",
+        params={
+            "issuer": "BMKG",
+            "warning_level": "Waspada",
+            "severity": "moderate",
+            "preparedness_guidance": "Siapkan tas darurat",
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201, resp.text
+    warning_id = resp.json()["id"]
+
+    # Insert superuser + API key langsung ke DB.
+    from packages.core.database import get_session_local
+    from packages.core.models import APIKey, User
+    import hashlib
+
+    session_local = get_session_local()
+    db = session_local()
+    try:
+        admin = User(
+            id=uuid4(),
+            email="admin@example.com",
+            name="Admin",
+            is_active=True,
+            is_superuser=True,
+        )
+        db.add(admin)
+        db.flush()
+        key_hash = hashlib.sha256(b"admin-secret-key").hexdigest()
+        db.add(
+            APIKey(
+                id=uuid4(),
+                name="admin-key",
+                key_hash=key_hash,
+                key_prefix="admin-secret",
+                user_id=admin.id,
+                is_active=True,
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    admin_headers = {"Authorization": "Bearer admin-secret-key"}
+
+    # Verifikasi warning — harus sukses (200) dan menyimpan notes.
+    resp = client.post(
+        f"/api/v1/admin/warnings/{warning_id}/verify",
+        json={"notes": "Divalidasi oleh BMKG resmi via buletin tanggal 2026-11-15"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["verification_status"] == "VERIFIED"
+    assert data["verified_by"] is not None
+    assert data["verified_at"] is not None
+    assert data["notes"] == "Divalidasi oleh BMKG resmi via buletin tanggal 2026-11-15"
+
+    # Verifikasi ulang harus ditolak (409).
+    resp = client.post(
+        f"/api/v1/admin/warnings/{warning_id}/verify",
+        json={"notes": "Duplikat"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 409, resp.text
+
+    # Pengguna biasa (bukan superuser) tidak dapat memverifikasi warning
+    # yang belum divalidasi — insert user non-superuser ke DB, buat warning baru,
+    # lalu coba verify sebagai pengguna biasa.
+    from packages.core.database import get_session_local
+    from packages.core.models import APIKey, User
+
+    session_local = get_session_local()
+    db = session_local()
+    try:
+        normal = User(
+            id=uuid4(),
+            email="user@example.com",
+            name="User",
+            is_active=True,
+            is_superuser=False,
+        )
+        db.add(normal)
+        db.flush()
+        key_hash = hashlib.sha256(b"normal-secret-key").hexdigest()
+        db.add(
+            APIKey(
+                id=uuid4(),
+                name="user-key",
+                key_hash=key_hash,
+                key_prefix="normal-secre",
+                user_id=normal.id,
+                is_active=True,
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    normal_headers = {"Authorization": "Bearer normal-secret-key"}
+
+    resp2 = client.post(
+        "/api/v1/warnings/official",
+        params={
+            "issuer": "BMKG",
+            "warning_level": "Waspada",
+            "severity": "moderate",
+        },
+        headers=normal_headers,
+    )
+    assert resp2.status_code == 201, resp2.text
+    warning_id_2 = resp2.json()["id"]
+
+    resp = client.post(
+        f"/api/v1/admin/warnings/{warning_id_2}/verify",
+        json={"notes": "coba"},
+        headers=normal_headers,
+    )
+    assert resp.status_code == 403, resp.text
