@@ -13,7 +13,7 @@ from fastapi import Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from packages.core.auth import get_api_key
+from packages.core.auth import hash_api_key, key_prefix
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -38,20 +38,29 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _record(self, key: str, now: float) -> None:
         self._timestamps[key].append(now)
 
+    def _extract_api_key(self, request: Request) -> str | None:
+        """Ambil API key dari header Authorization: Bearer atau X-API-Key."""
+        auth = request.headers.get("authorization")
+        if auth and auth.lower().startswith("bearer "):
+            return auth.split(" ", 1)[1].strip()
+        return request.headers.get("x-api-key")
+
     async def dispatch(self, request: Request, call_next) -> Response:
         # Hanya rate limit endpoint yang membutuhkan auth (selain /health dan /docs).
         path = request.url.path
         if path in ("/health", "/docs", "/openapi.json", "/metrics"):
             return await call_next(request)
 
-        api_key = None
-        try:
-            api_key = get_api_key(request)
-        except Exception:  # noqa: BLE001 — missing key handled by auth dependency
-            api_key = None
+        api_key = self._extract_api_key(request)
 
-        # Gunakan API key jika tersedia, fallback ke client host.
-        identifier = api_key or request.client.host if request.client else "anonymous"
+        # Gunakan hash API key sebagai identifier (tidak expose plaintext),
+        # fallback ke client host jika tidak ada key.
+        if api_key:
+            identifier = f"apikey:{key_prefix(api_key)}:{hash_api_key(api_key)[:16]}"
+        else:
+            identifier = (
+                f"host:{request.client.host}" if request.client else "anonymous"
+            )
         now = time.time()
 
         if not self._allowed(identifier, now):

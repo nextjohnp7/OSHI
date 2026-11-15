@@ -25,14 +25,14 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg2://oshi:oshi_dev_password@postgres:5432/oshi_prod
+      DATABASE_URL: postgresql+psycopg2://oshi:${DB_PASSWORD:-oshi_dev_password}@postgres:5432/oshi_prod
       APP_NAME: OSHI
       APP_ENV: production
       DEBUG: "false"
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
