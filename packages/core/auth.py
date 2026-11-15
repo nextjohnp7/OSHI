@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import uuid
 from datetime import datetime, timezone
 
 from fastapi import Depends, Header, HTTPException, status
@@ -152,6 +153,22 @@ def get_current_user(
     return user
 
 
+def resolve_primary_organization(user: User) -> uuid.UUID | None:
+    """Resolve the organization for a user.
+
+    Prefer a non-member role (admin/owner) when multiple memberships exist,
+    otherwise fall back to the first membership. Returns ``None`` if the user
+    has no memberships. This avoids silently picking an arbitrary organization
+    via ``memberships[0]`` when a user belongs to several.
+    """
+    if not user.memberships:
+        return None
+    for m in user.memberships:
+        if m.role not in ("member", "viewer"):
+            return m.organization_id
+    return user.memberships[0].organization_id
+
+
 __all__ = [
     "hash_api_key",
     "key_prefix",
@@ -159,5 +176,6 @@ __all__ = [
     "get_api_key",
     "require_api_key",
     "require_admin",
+    "resolve_primary_organization",
     "get_current_user",
 ]

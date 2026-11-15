@@ -12,7 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from apps.api.schemas import TaskStatusOut
-from packages.core.auth import require_api_key
+from packages.core.auth import require_api_key, resolve_primary_organization
 from packages.core.tasks import task_store
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
@@ -29,10 +29,7 @@ def list_tasks(
 ) -> list[TaskStatusOut]:
     """List background tasks (newest first) owned by the authenticated user."""
     user_id = current_user.id
-    # Ambil organization_id dari membership pertama (jika ada).
-    org_id = None
-    if current_user.memberships:
-        org_id = current_user.memberships[0].organization_id
+    org_id = resolve_primary_organization(current_user)
     tasks = task_store.list_tasks(limit=1000, user_id=user_id)
     # Filter tambahan di level aplikasi untuk memastikan tenant isolation.
     tasks = [t for t in tasks if t["user_id"] == str(user_id)]
