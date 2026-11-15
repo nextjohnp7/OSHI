@@ -72,6 +72,7 @@ class DocumentService:
                 select(Document).where(
                     Document.source_name == source_name,
                     Document.source_id == source_id,
+                    Document.user_id == user_id,
                 )
             ).scalar_one_or_none()
 

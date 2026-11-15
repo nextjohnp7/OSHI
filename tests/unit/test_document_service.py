@@ -53,19 +53,20 @@ def test_ingest_creates_document_and_chunks(svc, session):
 
 
 def test_ingest_dedupes_by_source(svc, session):
+    user_id = uuid4()
     svc.ingest(
         text="First version of the document.",
         source_name="test",
         source_id="doc-002",
         title="First Title",
-        user_id=uuid4(),
+        user_id=user_id,
     )
     svc.ingest(
         text="Second version of the document with more content here.",
         source_name="test",
         source_id="doc-002",
         title="Second Title",
-        user_id=uuid4(),
+        user_id=user_id,
     )
 
     rows = session.execute(select(Document)).scalars().all()
@@ -159,3 +160,33 @@ def test_get_document_chunks(svc, session):
     assert len(chunks) >= 3
     assert chunks[0].chunk_index == 0
     assert chunks[0].document_id == document.id
+
+
+def test_ingest_same_source_different_tenant_creates_separate_documents(svc, session):
+    """Two tenants ingesting the same source_id must not overwrite each other."""
+    user_a = uuid4()
+    user_b = uuid4()
+
+    doc_a = svc.ingest(
+        text="Tenant A content.",
+        source_name="test",
+        source_id="doc-shared",
+        title="Tenant A Doc",
+        user_id=user_a,
+    )
+    doc_b = svc.ingest(
+        text="Tenant B content.",
+        source_name="test",
+        source_id="doc-shared",
+        title="Tenant B Doc",
+        user_id=user_b,
+    )
+
+    assert doc_a.id != doc_b.id
+    assert doc_a.user_id == user_a
+    assert doc_b.user_id == user_b
+    assert doc_a.title == "Tenant A Doc"
+    assert doc_b.title == "Tenant B Doc"
+
+    rows = session.execute(select(Document)).scalars().all()
+    assert len(rows) == 2

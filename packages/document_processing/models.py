@@ -60,7 +60,13 @@ class Document(Base):
     )
 
     __table_args__ = (
-        Index("ix_documents_source", "source_name", "source_id", unique=True),
+        Index(
+            "ix_documents_source",
+            "source_name",
+            "source_id",
+            "user_id",
+            unique=True,
+        ),
     )
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid

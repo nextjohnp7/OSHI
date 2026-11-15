@@ -30,9 +30,11 @@ router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
 def list_agent_runs(
     current_user=Depends(require_api_key),
 ) -> list[dict[str, Any]]:
-    """List research agent runs (in-memory store, dev only)."""
+    """List research agent runs owned by the authenticated user (in-memory store, dev only)."""
     runs = []
     for run_id, state in _research_runs.items():
+        if state.get("user_id") != str(current_user.id):
+            continue
         runs.append(
             {
                 "run_id": run_id,
@@ -49,16 +51,20 @@ def list_agent_runs(
     "/runs/{run_id}",
     response_model=dict[str, Any],
     summary="Get an agent run",
-    description="Get the status and result of a specific agent run.",
+    description="Get the status and result of a specific agent run owned by the authenticated user.",
 )
 def get_agent_run(
     run_id: str,
     current_user=Depends(require_api_key),
 ) -> dict[str, Any]:
-    """Get the status and result of a specific agent run."""
+    """Get the status and result of a specific agent run owned by the authenticated user."""
     run = _research_runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Agent run not found")
+    if run.get("user_id") != str(current_user.id):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to view this agent run"
+        )
     return {
         "run_id": run_id,
         "status": run.get("status", "unknown"),
