@@ -97,7 +97,7 @@ def create_event(
         title=request.title,
         description=request.description,
         status=request.status,
-        verification_status=request.verification_status,
+        verification_status="UNVERIFIED",
         reported_impact=request.reported_impact,
     )
     db.add(event)
@@ -297,7 +297,8 @@ def translate_warning(
     """
     warning = db.execute(
         select(OfficialWarning).where(
-            OfficialWarning.id == translation_request.warning_id
+            OfficialWarning.id == translation_request.warning_id,
+            OfficialWarning.verification_status == "VERIFIED",
         )
     ).scalar_one_or_none()
     if warning is None:
@@ -333,6 +334,7 @@ def preparedness_guidance(
         db.execute(
             select(OfficialWarning).where(
                 OfficialWarning.is_active == True,  # noqa: E712
+                OfficialWarning.verification_status == "VERIFIED",
                 OfficialWarning.preparedness_guidance.isnot(None),
             )
         )

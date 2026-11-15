@@ -108,7 +108,7 @@ def test_translate_warning(client: TestClient):
     api_key = _bootstrap(client)
     headers = _auth_headers(api_key)
 
-    # Create a warning first
+    # Buat warning UNVERIFIED melalui API — translasi harus ditolak (404).
     resp = client.post(
         "/api/v1/warnings/official",
         params={
@@ -120,24 +120,57 @@ def test_translate_warning(client: TestClient):
         headers=headers,
     )
     assert resp.status_code == 201, resp.text
-    warning_id = resp.json()["id"]
+    unverified_id = resp.json()["id"]
 
     resp = client.post(
         "/api/v1/warnings/translations",
-        json={"warning_id": str(warning_id), "target_language": "en"},
+        json={"warning_id": str(unverified_id), "target_language": "en"},
+        headers=headers,
+    )
+    assert resp.status_code == 404, resp.text
+
+    # Warning VERIFIED dapat diterjemahkan — insert langsung ke DB.
+    from packages.core.database import get_session_local
+    from packages.core.models import OfficialWarning
+
+    session_local = get_session_local()
+    db = session_local()
+    try:
+        verified = OfficialWarning(
+            id=uuid4(),
+            issuer="BMKG",
+            warning_level="Awas",
+            severity="severe",
+            effective_time=None,
+            expiry_time=None,
+            affected_locations=None,
+            preparedness_guidance="Evakuasi ke tempat tinggi",
+            source_bulletin_url=None,
+            is_active=True,
+            verification_status="VERIFIED",
+        )
+        db.add(verified)
+        db.commit()
+        verified_id = str(verified.id)
+    finally:
+        db.close()
+
+    resp = client.post(
+        "/api/v1/warnings/translations",
+        json={"warning_id": verified_id, "target_language": "en"},
         headers=headers,
     )
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["target_language"] == "en"
-    assert data["translated_text"] == "Siapkan tas darurat"
+    assert data["translated_text"] == "Evakuasi ke tempat tinggi"
 
 
 def test_preparedness_guidance(client: TestClient):
     api_key = _bootstrap(client)
     headers = _auth_headers(api_key)
 
-    # Create warning with preparedness guidance
+    # Buat warning UNVERIFIED melalui API — tidak boleh muncul di preparedness.
     client.post(
         "/api/v1/warnings/official",
         params={
@@ -152,8 +185,39 @@ def test_preparedness_guidance(client: TestClient):
     resp = client.get("/api/v1/warnings/preparedness", headers=headers)
     assert resp.status_code == 200, resp.text
     guidance = resp.json()
-    assert len(guidance) >= 1
-    assert guidance[0]["guidance"] == "Evakuasi ke tempat tinggi"
+    assert all(g["guidance"] != "Evakuasi ke tempat tinggi" for g in guidance)
+
+    # Warning VERIFIED muncul di preparedness — insert langsung ke DB.
+    from packages.core.database import get_session_local
+    from packages.core.models import OfficialWarning
+
+    session_local = get_session_local()
+    db = session_local()
+    try:
+        verified = OfficialWarning(
+            id=uuid4(),
+            issuer="BMKG",
+            warning_level="Awas",
+            severity="severe",
+            effective_time=None,
+            expiry_time=None,
+            affected_locations=None,
+            preparedness_guidance="Siapkan tas darurat dan dokumen penting",
+            source_bulletin_url=None,
+            is_active=True,
+            verification_status="VERIFIED",
+        )
+        db.add(verified)
+        db.commit()
+    finally:
+        db.close()
+
+    resp = client.get("/api/v1/warnings/preparedness", headers=headers)
+    assert resp.status_code == 200, resp.text
+    guidance = resp.json()
+    assert any(
+        g["guidance"] == "Siapkan tas darurat dan dokumen penting" for g in guidance
+    )
 
 
 def test_protected_without_key(client: TestClient):

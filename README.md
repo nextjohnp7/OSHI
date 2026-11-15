@@ -49,7 +49,7 @@ uv run uvicorn apps.api.main:app --reload
 uv run pytest tests/
 ```
 
-Latest result: **46 passed, 0 failed**.
+Latest result: **87 passed, 2 skipped, 0 failed** (PostgreSQL integration tests skip when no Docker/psql locally).
 
 ## Project Structure
 
