@@ -56,6 +56,8 @@ async def ingest_document(
                 source_url=request.source_url,
                 chunk_size=request.chunk_size,
                 overlap=request.overlap,
+                user_id=current_user.id,
+                organization_id=org_id,
             )
             task_store.complete(
                 task_id, DocumentOut.model_validate(document).model_dump()
@@ -83,9 +85,10 @@ async def ingest_document(
 )
 def list_documents(
     limit: int = Query(default=20, ge=1, le=100),
+    current_user=Depends(require_api_key),
 ):
     """List imported documents."""
-    return service.list_documents(limit=limit)
+    return service.list_documents(limit=limit, user_id=current_user.id)
 
 
 @router.get(
@@ -94,9 +97,12 @@ def list_documents(
     summary="Get a document by ID",
     description="Get a single imported document by its internal UUID.",
 )
-def get_document(document_id: str):
+def get_document(
+    document_id: str,
+    current_user=Depends(require_api_key),
+):
     """Get a single document by its internal UUID."""
-    document = service.get_document(document_id)
+    document = service.get_document(document_id, user_id=current_user.id)
     if document is None:
         from fastapi import HTTPException
 
@@ -110,9 +116,12 @@ def get_document(document_id: str):
     summary="Get document chunks",
     description="Get all chunks of a document, ordered by chunk_index.",
 )
-def get_document_chunks(document_id: str):
+def get_document_chunks(
+    document_id: str,
+    current_user=Depends(require_api_key),
+):
     """Get all chunks of a document, ordered by chunk_index."""
-    chunks = service.get_document_chunks(document_id)
+    chunks = service.get_document_chunks(document_id, user_id=current_user.id)
     return [
         DocumentChunkOut(
             id=c.id,
@@ -131,7 +140,10 @@ def get_document_chunks(document_id: str):
     description="Semantic (vector) search across stored document chunks. "
     "Returns chunks ranked by cosine similarity to the query.",
 )
-def semantic_search(request: DocumentSearchRequest):
+def semantic_search(
+    request: DocumentSearchRequest,
+    current_user=Depends(require_api_key),
+):
     """Semantic (vector) search across stored document chunks.
 
     Returns chunks ranked by cosine similarity to the query.
@@ -140,6 +152,7 @@ def semantic_search(request: DocumentSearchRequest):
         query=request.q,
         top_k=request.top_k,
         source_name=request.source_name,
+        user_id=current_user.id,
     )
     return DocumentSearchResponse(
         query=request.q,

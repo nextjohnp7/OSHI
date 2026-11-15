@@ -17,6 +17,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Any
+import uuid
 
 from sqlalchemy import select
 
@@ -53,11 +54,15 @@ class DocumentService:
         source_url: str | None = None,
         chunk_size: int = 500,
         overlap: int = 50,
+        user_id: uuid.UUID | None = None,
+        organization_id: uuid.UUID | None = None,
     ) -> Document:
         """Import a document: hash, deduplicate, chunk, embed, store.
 
         If a document with the same (source_name, source_id) already exists,
         its chunks are replaced (delete + re-insert).
+
+        Documents are scoped to a user/organization for multi-tenant isolation.
         """
         content_hash = self._content_hash(text)
         db = self._get_db()
@@ -76,6 +81,10 @@ class DocumentService:
                 document.source_url = source_url
                 document.content_hash = content_hash
                 document.updated_at = datetime.now(timezone.utc)
+                if user_id is not None:
+                    document.user_id = user_id
+                if organization_id is not None:
+                    document.organization_id = organization_id
                 # Remove old chunks.
                 db.execute(
                     __import__("sqlalchemy")
@@ -90,6 +99,8 @@ class DocumentService:
                     title=title,
                     source_url=source_url,
                     content_hash=content_hash,
+                    user_id=user_id,
+                    organization_id=organization_id,
                 )
                 db.add(document)
                 db.flush()
@@ -122,11 +133,14 @@ class DocumentService:
         query: str,
         top_k: int = 5,
         source_name: str | None = None,
+        user_id: uuid.UUID | None = None,
     ) -> list[dict[str, Any]]:
         """Semantic search across stored document chunks.
 
         Returns chunks ranked by cosine similarity to the query, augmented with
         document metadata (title, source_name, source_id, source_url).
+
+        Optionally scoped to a specific user for multi-tenant isolation.
         """
         db = self._get_db()
         own_session = self._session is None
@@ -134,6 +148,8 @@ class DocumentService:
             stmt = select(DocumentChunk).join(Document)
             if source_name is not None:
                 stmt = stmt.where(Document.source_name == source_name)
+            if user_id is not None:
+                stmt = stmt.where(Document.user_id == user_id)
             rows = list(db.execute(stmt).scalars())
 
             if not rows:
@@ -164,34 +180,49 @@ class DocumentService:
             if own_session:
                 db.close()
 
-    def list_documents(self, limit: int = 20) -> list[Document]:
-        """List imported documents."""
+    def list_documents(
+        self, limit: int = 20, user_id: uuid.UUID | None = None
+    ) -> list[Document]:
+        """List imported documents.
+
+        Optionally scoped to a specific user for multi-tenant isolation.
+        """
         db = self._get_db()
         own_session = self._session is None
         try:
             stmt = select(Document).order_by(Document.created_at.desc()).limit(limit)
+            if user_id is not None:
+                stmt = stmt.where(Document.user_id == user_id)
             return list(db.execute(stmt).scalars())
         finally:
             if own_session:
                 db.close()
 
-    def get_document(self, document_id: str) -> Document | None:
-        """Get a single document by its internal UUID."""
-        from uuid import UUID
+    def get_document(
+        self, document_id: str, user_id: uuid.UUID | None = None
+    ) -> Document | None:
+        """Get a single document by its internal UUID.
 
-        from sqlalchemy import select
-
+        Optionally scoped to a specific user for multi-tenant isolation.
+        """
         db = self._get_db()
         own_session = self._session is None
         try:
-            stmt = select(Document).where(Document.id == UUID(document_id))
+            stmt = select(Document).where(Document.id == uuid.UUID(document_id))
+            if user_id is not None:
+                stmt = stmt.where(Document.user_id == user_id)
             return db.execute(stmt).scalar_one_or_none()
         finally:
             if own_session:
                 db.close()
 
-    def get_document_chunks(self, document_id: str) -> list[DocumentChunk]:
-        """Get all chunks of a document, ordered by chunk_index."""
+    def get_document_chunks(
+        self, document_id: str, user_id: uuid.UUID | None = None
+    ) -> list[DocumentChunk]:
+        """Get all chunks of a document, ordered by chunk_index.
+
+        Optionally scoped to a specific user for multi-tenant isolation.
+        """
         from uuid import UUID
 
         from sqlalchemy import select
@@ -201,9 +232,12 @@ class DocumentService:
         try:
             stmt = (
                 select(DocumentChunk)
+                .join(Document)
                 .where(DocumentChunk.document_id == UUID(document_id))
                 .order_by(DocumentChunk.chunk_index)
             )
+            if user_id is not None:
+                stmt = stmt.where(Document.user_id == user_id)
             return list(db.execute(stmt).scalars())
         finally:
             if own_session:

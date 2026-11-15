@@ -60,7 +60,10 @@ async def run_research(
                 max_evidence_per_publication=request.max_evidence_per_publication,
             )
             run_id = final_state.get("run_id", task_id)
-            _research_runs[run_id] = final_state
+            _research_runs[run_id] = {
+                **final_state,
+                "user_id": str(current_user.id),
+            }
             task_store.complete(task_id, final_state)
         except Exception as exc:  # noqa: BLE001 — record failure in task store
             task_store.fail(task_id, str(exc))
@@ -81,13 +84,21 @@ async def run_research(
     "/{run_id}",
     response_model=ResearchRunResponse,
     summary="Get a research run",
-    description="Get the result of a previously run research job by run ID.",
+    description="Get the result of a previously run research job by run ID. "
+    "Only the user who started the research can view its result.",
 )
-async def get_research_run(run_id: str) -> ResearchRunResponse:
+async def get_research_run(
+    run_id: str,
+    current_user=Depends(require_api_key),
+) -> ResearchRunResponse:
     """Get the result of a previously run research job."""
     run = _research_runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
+    if run.get("user_id") != str(current_user.id):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to view this research run"
+        )
 
     return ResearchRunResponse(
         run_id=run.get("run_id", run_id),

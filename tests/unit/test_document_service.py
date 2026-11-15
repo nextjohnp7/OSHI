@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from uuid import uuid4
 
 from packages.document_processing.models import Base, Document, DocumentChunk
 from packages.document_processing.service import DocumentService
@@ -35,6 +36,7 @@ def test_ingest_creates_document_and_chunks(svc, session):
         source_name="test",
         source_id="doc-001",
         title="Test Document",
+        user_id=uuid4(),
     )
 
     assert document.id is not None
@@ -56,12 +58,14 @@ def test_ingest_dedupes_by_source(svc, session):
         source_name="test",
         source_id="doc-002",
         title="First Title",
+        user_id=uuid4(),
     )
     svc.ingest(
         text="Second version of the document with more content here.",
         source_name="test",
         source_id="doc-002",
         title="Second Title",
+        user_id=uuid4(),
     )
 
     rows = session.execute(select(Document)).scalars().all()
@@ -79,12 +83,14 @@ def test_semantic_search_returns_chunks(svc, session):
         source_name="test",
         source_id="doc-climate",
         title="Climate Report",
+        user_id=uuid4(),
     )
     svc.ingest(
         text="Quantum computing uses qubits for computation.",
         source_name="test",
         source_id="doc-quantum",
         title="Quantum Report",
+        user_id=uuid4(),
     )
 
     results = svc.semantic_search(query="climate change agriculture", top_k=5)
@@ -106,12 +112,14 @@ def test_list_documents(svc, session):
         source_name="test",
         source_id="doc-001",
         title="First Doc",
+        user_id=uuid4(),
     )
     svc.ingest(
         text="Document two content.",
         source_name="test",
         source_id="doc-002",
         title="Second Doc",
+        user_id=uuid4(),
     )
 
     docs = svc.list_documents(limit=10)
@@ -126,6 +134,7 @@ def test_get_document(svc, session):
         source_name="test",
         source_id="doc-get",
         title="Get Me",
+        user_id=uuid4(),
     )
 
     found = svc.get_document(str(document.id))
@@ -143,6 +152,7 @@ def test_get_document_chunks(svc, session):
         source_name="test",
         source_id="doc-chunks",
         title="Chunked Doc",
+        user_id=uuid4(),
     )
 
     chunks = svc.get_document_chunks(str(document.id))
