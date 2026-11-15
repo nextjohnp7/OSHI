@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from apps.api.main import create_app
 from apps.api.routes.publications import service
 from packages.connectors.scientific.schemas import NormalizedPublication
-from packages.core.database import Base
+from packages.core.database import Base, reset_engine
 from packages.core.models import Publication
 
 
@@ -56,6 +56,7 @@ def api_client(tmp_path):
 
     os.environ["DATABASE_URL"] = f"sqlite:///{db_file}"
     get_settings.cache_clear()
+    reset_engine()
 
     client = TestClient(create_app())
 

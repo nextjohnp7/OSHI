@@ -69,6 +69,11 @@ async def run_research(
             task_store.fail(task_id, str(exc))
 
     background_tasks.add_task(_run)
+    # NOTE: FastAPI BackgroundTasks run in-process and do NOT survive a
+    # process restart. For production multi-worker deployment, replace with a
+    # persistent task queue (e.g. Celery + Redis) so research jobs can be
+    # retried and recovered across workers. The TaskStore record persists in
+    # the database, but the in-flight background job is lost on restart.
     task_record = task_store.get(task_id, user_id=current_user.id)
     if task_record is None:
         raise HTTPException(status_code=500, detail="Task record not found")

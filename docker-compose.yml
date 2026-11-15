@@ -5,8 +5,8 @@ services:
     image: ankane/pgvector:latest
     container_name: oshi_postgres
     environment:
-      POSTGRES_USER: oshi
-      POSTGRES_PASSWORD: oshi_dev_password
+      POSTGRES_USER: ${DB_USER:-oshi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-oshi_dev_password}
       POSTGRES_DB: oshi_prod
     ports:
       - "5432:5432"
@@ -25,7 +25,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg2://oshi:${DB_PASSWORD:-oshi_dev_password}@postgres:5432/oshi_prod
+      DATABASE_URL: postgresql+psycopg2://${DB_USER:-oshi}:${DB_PASSWORD:-oshi_dev_password}@postgres:5432/oshi_prod
       APP_NAME: OSHI
       APP_ENV: production
       DEBUG: "false"

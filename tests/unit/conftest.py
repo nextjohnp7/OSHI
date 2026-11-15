@@ -15,7 +15,7 @@ from sqlalchemy import create_engine
 
 from apps.api.main import create_app
 from packages.core.config import get_settings
-from packages.core.database import Base
+from packages.core.database import Base, reset_engine
 
 
 @pytest.fixture
@@ -27,6 +27,7 @@ def client() -> Generator[TestClient, None, None]:
     """
     # Clear the cached settings so the next call reads fresh env.
     get_settings.cache_clear()
+    reset_engine()
 
     # Use a temp file database (not :memory:, because each connection to
     # :memory: is a separate empty database).
@@ -54,4 +55,5 @@ def client() -> Generator[TestClient, None, None]:
     except OSError:
         pass
     get_settings.cache_clear()
+    reset_engine()
     os.environ.pop("DATABASE_URL", None)

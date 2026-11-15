@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from apps.api.main import create_app
 from apps.api.routes.documents import service as document_service
 from packages.core.config import get_settings
-from packages.core.database import Base
+from packages.core.database import Base, reset_engine
 from packages.core.models import Task
 
 
@@ -40,6 +40,7 @@ def api_client(tmp_path) -> Generator[tuple[TestClient, str], None, None]:
 
     os.environ["DATABASE_URL"] = f"sqlite:///{db_file}"
     get_settings.cache_clear()
+    reset_engine()
 
     app = create_app()
     client = TestClient(app)
@@ -55,6 +56,7 @@ def api_client(tmp_path) -> Generator[tuple[TestClient, str], None, None]:
 
     session.close()
     get_settings.cache_clear()
+    reset_engine()
     os.environ.pop("DATABASE_URL", None)
     try:
         os.unlink(db_file)
