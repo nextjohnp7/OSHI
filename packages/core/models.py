@@ -401,6 +401,9 @@ class OfficialWarning(Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, index=True
     )
+    verification_status: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="UNVERIFIED", index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

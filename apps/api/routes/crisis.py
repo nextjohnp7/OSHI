@@ -196,12 +196,14 @@ def list_warnings(
     db: Session = Depends(get_db),
     current_user=Depends(require_api_key),
 ) -> list[OfficialWarningOut]:
-    """List official hazard warnings (Part 3.5 UEWI).
+    """List official hazard warnings (Part 3.5 UEFI).
 
     Warnings are never independently invented; issuer and severity are
-    preserved exactly as issued.
+    preserved exactly as issued. Only verified warnings are returned.
     """
-    stmt = select(OfficialWarning)
+    stmt = select(OfficialWarning).where(
+        OfficialWarning.verification_status == "VERIFIED"
+    )
     if active_only:
         stmt = stmt.where(OfficialWarning.is_active == True)  # noqa: E712
     stmt = stmt.order_by(OfficialWarning.created_at.desc()).limit(limit)
@@ -267,6 +269,7 @@ def create_warning(
         preparedness_guidance=preparedness_guidance,
         source_bulletin_url=source_bulletin_url,
         is_active=True,
+        verification_status="UNVERIFIED",
     )
     db.add(warning)
     db.commit()

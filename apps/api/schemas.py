@@ -240,6 +240,7 @@ class OfficialWarningOut(BaseModel):
     preparedness_guidance: str | None = None
     source_bulletin_url: str | None = None
     is_active: bool
+    verification_status: str
 
     model_config = {"from_attributes": True}
 

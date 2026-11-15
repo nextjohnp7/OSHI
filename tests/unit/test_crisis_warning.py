@@ -93,11 +93,15 @@ def test_create_and_list_warning(client: TestClient):
     assert data["warning_level"] == "Waspada"
     assert data["severity"] == "moderate"
     assert data["is_active"] is True
+    # Warning baru dibuat dengan status UNVERIFIED; belum divalidasi oleh
+    # otoritas resmi, jadi tidak langsung muncul dalam daftar verified.
+    assert data["verification_status"] == "UNVERIFIED"
 
+    # Hanya warning VERIFIED yang tampil dalam daftar publik.
     resp = client.get("/api/v1/warnings/official", headers=headers)
     assert resp.status_code == 200, resp.text
     warnings = resp.json()
-    assert len(warnings) >= 1
+    assert all(w["verification_status"] == "VERIFIED" for w in warnings)
 
 
 def test_translate_warning(client: TestClient):
