@@ -22,13 +22,22 @@ router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
     "",
     response_model=list[TaskStatusOut],
     summary="List background tasks",
-    description="List the most recent background tasks (newest first).",
+    description="List the most recent background tasks (newest first) owned by the authenticated user.",
 )
 def list_tasks(
     current_user=Depends(require_api_key),
 ) -> list[TaskStatusOut]:
-    """List background tasks (newest first)."""
-    tasks = task_store.list_tasks()
+    """List background tasks (newest first) owned by the authenticated user."""
+    user_id = current_user.id
+    # Ambil organization_id dari membership pertama (jika ada).
+    org_id = None
+    if current_user.memberships:
+        org_id = current_user.memberships[0].organization_id
+    tasks = task_store.list_tasks(limit=1000, user_id=user_id)
+    # Filter tambahan di level aplikasi untuk memastikan tenant isolation.
+    tasks = [t for t in tasks if t["user_id"] == str(user_id)]
+    if org_id is not None:
+        tasks = [t for t in tasks if t.get("organization_id") == str(org_id)]
     return [TaskStatusOut.model_validate(t) for t in tasks]
 
 
@@ -36,14 +45,14 @@ def list_tasks(
     "/{task_id}",
     response_model=TaskStatusOut,
     summary="Get task status",
-    description="Get the status and result of a background task.",
+    description="Get the status and result of a background task owned by the authenticated user.",
 )
 def get_task_status(
     task_id: str,
     current_user=Depends(require_api_key),
 ) -> TaskStatusOut:
-    """Get the status and result of a background task."""
-    task = task_store.get(task_id)
+    """Get the status and result of a background task owned by the authenticated user."""
+    task = task_store.get(task_id, user_id=current_user.id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return TaskStatusOut.model_validate(task)
@@ -52,17 +61,17 @@ def get_task_status(
 @router.delete(
     "/{task_id}",
     summary="Cancel a task",
-    description="Cancel a pending background task. Returns 404 if not found or 409 if already terminal.",
+    description="Cancel a pending background task owned by the authenticated user. Returns 404 if not found or 409 if already terminal.",
 )
 def cancel_task(
     task_id: str,
     current_user=Depends(require_api_key),
 ) -> dict[str, str]:
-    """Cancel a pending background task."""
-    cancelled = task_store.cancel(task_id)
+    """Cancel a pending background task owned by the authenticated user."""
+    cancelled = task_store.cancel(task_id, user_id=current_user.id)
     if not cancelled:
         # Check if task exists
-        task = task_store.get(task_id)
+        task = task_store.get(task_id, user_id=current_user.id)
         if task is None:
             raise HTTPException(status_code=404, detail="Task not found")
         raise HTTPException(

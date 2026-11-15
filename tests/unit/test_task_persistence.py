@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from apps.api.main import create_app
@@ -130,14 +130,18 @@ def test_cancel_pending_task_directly(api_client):
 
     # Insert a pending task directly into the DB.
     from packages.core.database import get_session_local
+    from packages.core.models import User
 
     session_local = get_session_local()
     db = session_local()
     try:
+        # Dapatkan user yang dibuat oleh bootstrap.
+        user = db.execute(select(User)).scalar_one()
         task = Task(
             id=uuid4(),
             status="pending",
             task_type="ingest",
+            user_id=user.id,
         )
         db.add(task)
         db.commit()

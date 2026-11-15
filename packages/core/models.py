@@ -459,13 +459,26 @@ class Task(Base):
     """Background task record for asynchronous operations (ingest, research).
 
     Persisted so tasks survive server restarts and can be queried across
-    workers in production.
+    workers in production. Tasks are scoped to a user/organization for
+    multi-tenant isolation.
     """
 
     __tablename__ = "tasks"
 
     id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending", index=True

@@ -27,25 +27,43 @@ class TaskStatus:
 class TaskStore:
     """Database-backed task store (survives server restarts)."""
 
-    def create(self, task_type: str = "ingest") -> str:
+    def create(
+        self,
+        task_type: str = "ingest",
+        user_id: uuid.UUID | None = None,
+        organization_id: uuid.UUID | None = None,
+    ) -> str:
         """Create a new pending task and return its ID."""
         task_id = uuid.uuid4()
         session_local = get_session_local()
         db = session_local()
         try:
-            task = Task(id=task_id, status=TaskStatus.PENDING, task_type=task_type)
+            task = Task(
+                id=task_id,
+                status=TaskStatus.PENDING,
+                task_type=task_type,
+                user_id=user_id,
+                organization_id=organization_id,
+            )
             db.add(task)
             db.commit()
         finally:
             db.close()
         return str(task_id)
 
-    def get(self, task_id: str) -> dict[str, Any] | None:
-        """Return a task record as a dict, or None if not found."""
+    def get(
+        self, task_id: str, user_id: uuid.UUID | None = None
+    ) -> dict[str, Any] | None:
+        """Return a task record as a dict, or None if not found.
+
+        If ``user_id`` is given, only tasks owned by that user are returned.
+        """
         session_local = get_session_local()
         db = session_local()
         try:
             stmt = select(Task).where(Task.id == uuid.UUID(task_id))
+            if user_id is not None:
+                stmt = stmt.where(Task.user_id == user_id)
             task = db.execute(stmt).scalar_one_or_none()
             if task is None:
                 return None
@@ -56,6 +74,10 @@ class TaskStore:
                 "task_type": task.task_type,
                 "result": result,
                 "error": task.error,
+                "user_id": str(task.user_id),
+                "organization_id": (
+                    str(task.organization_id) if task.organization_id else None
+                ),
                 "created_at": task.created_at.isoformat() if task.created_at else None,
                 "completed_at": (
                     task.completed_at.isoformat() if task.completed_at else None
@@ -101,12 +123,20 @@ class TaskStore:
         finally:
             db.close()
 
-    def list_tasks(self, limit: int = 50) -> list[dict[str, Any]]:
-        """List the most recent tasks (newest first)."""
+    def list_tasks(
+        self, limit: int = 50, user_id: uuid.UUID | None = None
+    ) -> list[dict[str, Any]]:
+        """List the most recent tasks (newest first).
+
+        If ``user_id`` is given, only tasks owned by that user are returned.
+        """
         session_local = get_session_local()
         db = session_local()
         try:
-            stmt = select(Task).order_by(Task.created_at.desc()).limit(limit)
+            stmt = select(Task)
+            if user_id is not None:
+                stmt = stmt.where(Task.user_id == user_id)
+            stmt = stmt.order_by(Task.created_at.desc()).limit(limit)
             tasks = db.execute(stmt).scalars().all()
             return [
                 {
@@ -115,6 +145,10 @@ class TaskStore:
                     "task_type": t.task_type,
                     "result": _json_safe(t.result),
                     "error": t.error,
+                    "user_id": str(t.user_id),
+                    "organization_id": (
+                        str(t.organization_id) if t.organization_id else None
+                    ),
                     "created_at": t.created_at.isoformat() if t.created_at else None,
                     "completed_at": (
                         t.completed_at.isoformat() if t.completed_at else None
@@ -125,16 +159,19 @@ class TaskStore:
         finally:
             db.close()
 
-    def cancel(self, task_id: str) -> bool:
+    def cancel(self, task_id: str, user_id: uuid.UUID | None = None) -> bool:
         """Mark a pending task as cancelled (failed with user-cancelled error).
 
         Returns True if a task was cancelled, False if not found or already
-        terminal.
+        terminal. If ``user_id`` is given, only tasks owned by that user can
+        be cancelled.
         """
         session_local = get_session_local()
         db = session_local()
         try:
             stmt = select(Task).where(Task.id == uuid.UUID(task_id))
+            if user_id is not None:
+                stmt = stmt.where(Task.user_id == user_id)
             task = db.execute(stmt).scalar_one_or_none()
             if task is None:
                 return False

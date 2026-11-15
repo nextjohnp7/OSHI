@@ -294,6 +294,8 @@ class TaskStatusOut(BaseModel):
     task_type: str
     result: Any = None
     error: str | None = None
+    user_id: str | None = None
+    organization_id: str | None = None
     created_at: datetime
     completed_at: datetime | None = None
 

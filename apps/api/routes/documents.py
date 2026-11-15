@@ -1,6 +1,6 @@
 """Document API routes (Sprint 3)."""
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from apps.api.schemas import (
     DocumentChunkOut,
@@ -10,6 +10,7 @@ from apps.api.schemas import (
     DocumentSearchResponse,
     TaskResponse,
 )
+from packages.core.auth import require_api_key
 from packages.core.tasks import task_store
 from packages.document_processing.service import DocumentService
 
@@ -22,6 +23,7 @@ service = DocumentService()
 async def ingest_document(
     request: DocumentIngestRequest,
     background_tasks: BackgroundTasks,
+    current_user=Depends(require_api_key),
 ):
     """Import a document: chunk, embed, and store (background task).
 
@@ -29,7 +31,16 @@ async def ingest_document(
     replaces its chunks. Returns a task ID immediately; poll
     ``GET /api/v1/tasks/{task_id}`` for the result.
     """
-    task_id = task_store.create(task_type="ingest")
+    # Ambil organization_id dari membership pertama (jika ada).
+    org_id = None
+    if current_user.memberships:
+        org_id = current_user.memberships[0].organization_id
+
+    task_id = task_store.create(
+        task_type="ingest",
+        user_id=current_user.id,
+        organization_id=org_id,
+    )
 
     async def _ingest() -> None:
         try:
@@ -53,7 +64,7 @@ async def ingest_document(
             task_store.fail(task_id, str(exc))
 
     background_tasks.add_task(_ingest)
-    task_record = task_store.get(task_id)
+    task_record = task_store.get(task_id, user_id=current_user.id)
     if task_record is None:
         raise HTTPException(status_code=500, detail="Task record not found")
     return TaskResponse(

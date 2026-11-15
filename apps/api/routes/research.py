@@ -8,7 +8,7 @@ Endpoints:
 from __future__ import annotations
 
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from apps.api.schemas import (
     ResearchEvidenceOut,
@@ -18,6 +18,7 @@ from apps.api.schemas import (
     TaskResponse,
 )
 from packages.core.tasks import task_store
+from packages.core.auth import require_api_key
 from packages.agents.research.graph import run_research_agent
 
 router = APIRouter(prefix="/api/v1/research", tags=["research"])
@@ -30,6 +31,7 @@ _research_runs: dict[str, dict] = {}
 async def run_research(
     request: ResearchRunRequest,
     background_tasks: BackgroundTasks,
+    current_user=Depends(require_api_key),
 ) -> TaskResponse:
     """Run the research agent workflow (background task).
 
@@ -37,7 +39,16 @@ async def run_research(
     snippets, and generates a markdown research report. Returns a task ID
     immediately; poll ``GET /api/v1/tasks/{task_id}`` for the result.
     """
-    task_id = task_store.create(task_type="research")
+    # Ambil organization_id dari membership pertama (jika ada).
+    org_id = None
+    if current_user.memberships:
+        org_id = current_user.memberships[0].organization_id
+
+    task_id = task_store.create(
+        task_type="research",
+        user_id=current_user.id,
+        organization_id=org_id,
+    )
 
     async def _run() -> None:
         try:
@@ -55,7 +66,7 @@ async def run_research(
             task_store.fail(task_id, str(exc))
 
     background_tasks.add_task(_run)
-    task_record = task_store.get(task_id)
+    task_record = task_store.get(task_id, user_id=current_user.id)
     if task_record is None:
         raise HTTPException(status_code=500, detail="Task record not found")
     return TaskResponse(
