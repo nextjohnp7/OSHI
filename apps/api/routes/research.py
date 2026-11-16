@@ -18,7 +18,10 @@ from apps.api.schemas import (
     TaskResponse,
 )
 from packages.core.tasks import task_store
-from packages.core.auth import require_api_key, resolve_primary_organization
+from packages.core.auth import (
+    require_api_key,
+    get_organization_context,
+)
 from packages.agents.research.graph import run_research_agent
 
 router = APIRouter(prefix="/api/v1/research", tags=["research"])
@@ -32,6 +35,7 @@ async def run_research(
     request: ResearchRunRequest,
     background_tasks: BackgroundTasks,
     current_user=Depends(require_api_key),
+    org_id=Depends(get_organization_context),
 ) -> TaskResponse:
     """Run the research agent workflow (background task).
 
@@ -39,9 +43,6 @@ async def run_research(
     snippets, and generates a markdown research report. Returns a task ID
     immediately; poll ``GET /api/v1/tasks/{task_id}`` for the result.
     """
-    # Ambil organization_id dengan resolusi yang lebih baik dari membership pertama.
-    org_id = resolve_primary_organization(current_user)
-
     task_id = task_store.create(
         task_type="research",
         user_id=current_user.id,

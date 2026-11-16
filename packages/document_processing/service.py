@@ -59,10 +59,11 @@ class DocumentService:
     ) -> Document:
         """Import a document: hash, deduplicate, chunk, embed, store.
 
-        If a document with the same (source_name, source_id) already exists,
-        its chunks are replaced (delete + re-insert).
+        If a document with the same (source_name, source_id, organization_id)
+        already exists, its chunks are replaced (delete + re-insert).
 
         Documents are scoped to a user/organization for multi-tenant isolation.
+        ``organization_id`` is the tenant boundary; ``user_id`` is the actor.
         """
         content_hash = self._content_hash(text)
         db = self._get_db()
@@ -72,7 +73,7 @@ class DocumentService:
                 select(Document).where(
                     Document.source_name == source_name,
                     Document.source_id == source_id,
-                    Document.user_id == user_id,
+                    Document.organization_id == organization_id,
                 )
             ).scalar_one_or_none()
 
@@ -135,13 +136,15 @@ class DocumentService:
         top_k: int = 5,
         source_name: str | None = None,
         user_id: uuid.UUID | None = None,
+        organization_id: uuid.UUID | None = None,
     ) -> list[dict[str, Any]]:
         """Semantic search across stored document chunks.
 
         Returns chunks ranked by cosine similarity to the query, augmented with
         document metadata (title, source_name, source_id, source_url).
 
-        Optionally scoped to a specific user for multi-tenant isolation.
+        Optionally scoped to a specific user/organization for multi-tenant
+        isolation. ``organization_id`` is the tenant boundary.
         """
         db = self._get_db()
         own_session = self._session is None
@@ -149,7 +152,9 @@ class DocumentService:
             stmt = select(DocumentChunk).join(Document)
             if source_name is not None:
                 stmt = stmt.where(Document.source_name == source_name)
-            if user_id is not None:
+            if organization_id is not None:
+                stmt = stmt.where(Document.organization_id == organization_id)
+            elif user_id is not None:
                 stmt = stmt.where(Document.user_id == user_id)
             rows = list(db.execute(stmt).scalars())
 
@@ -182,17 +187,23 @@ class DocumentService:
                 db.close()
 
     def list_documents(
-        self, limit: int = 20, user_id: uuid.UUID | None = None
+        self,
+        limit: int = 20,
+        user_id: uuid.UUID | None = None,
+        organization_id: uuid.UUID | None = None,
     ) -> list[Document]:
         """List imported documents.
 
-        Optionally scoped to a specific user for multi-tenant isolation.
+        Optionally scoped to a specific user/organization for multi-tenant
+        isolation. ``organization_id`` is the tenant boundary.
         """
         db = self._get_db()
         own_session = self._session is None
         try:
             stmt = select(Document).order_by(Document.created_at.desc()).limit(limit)
-            if user_id is not None:
+            if organization_id is not None:
+                stmt = stmt.where(Document.organization_id == organization_id)
+            elif user_id is not None:
                 stmt = stmt.where(Document.user_id == user_id)
             return list(db.execute(stmt).scalars())
         finally:
@@ -200,17 +211,23 @@ class DocumentService:
                 db.close()
 
     def get_document(
-        self, document_id: str, user_id: uuid.UUID | None = None
+        self,
+        document_id: str,
+        user_id: uuid.UUID | None = None,
+        organization_id: uuid.UUID | None = None,
     ) -> Document | None:
         """Get a single document by its internal UUID.
 
-        Optionally scoped to a specific user for multi-tenant isolation.
+        Optionally scoped to a specific user/organization for multi-tenant
+        isolation. ``organization_id`` is the tenant boundary.
         """
         db = self._get_db()
         own_session = self._session is None
         try:
             stmt = select(Document).where(Document.id == uuid.UUID(document_id))
-            if user_id is not None:
+            if organization_id is not None:
+                stmt = stmt.where(Document.organization_id == organization_id)
+            elif user_id is not None:
                 stmt = stmt.where(Document.user_id == user_id)
             return db.execute(stmt).scalar_one_or_none()
         finally:
@@ -218,11 +235,15 @@ class DocumentService:
                 db.close()
 
     def get_document_chunks(
-        self, document_id: str, user_id: uuid.UUID | None = None
+        self,
+        document_id: str,
+        user_id: uuid.UUID | None = None,
+        organization_id: uuid.UUID | None = None,
     ) -> list[DocumentChunk]:
         """Get all chunks of a document, ordered by chunk_index.
 
-        Optionally scoped to a specific user for multi-tenant isolation.
+        Optionally scoped to a specific user/organization for multi-tenant
+        isolation. ``organization_id`` is the tenant boundary.
         """
         from uuid import UUID
 
@@ -237,7 +258,9 @@ class DocumentService:
                 .where(DocumentChunk.document_id == UUID(document_id))
                 .order_by(DocumentChunk.chunk_index)
             )
-            if user_id is not None:
+            if organization_id is not None:
+                stmt = stmt.where(Document.organization_id == organization_id)
+            elif user_id is not None:
                 stmt = stmt.where(Document.user_id == user_id)
             return list(db.execute(stmt).scalars())
         finally:

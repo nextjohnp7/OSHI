@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from packages.core.auth import require_admin, require_api_key
 from packages.core.config import get_settings
 from packages.core.database import get_db
-from packages.core.models import OfficialWarning
+from packages.core.models import OfficialWarning, WarningVerificationEvent
 
 from apps.api.schemas import (
     WarningVerificationOut,
@@ -142,6 +142,18 @@ def verify_warning(
     warning.verified_at = datetime.now(timezone.utc)
     warning.verification_notes = request.notes if request else None
     db.add(warning)
+
+    # Append-only audit event for the verification transition.
+    audit_event = WarningVerificationEvent(
+        warning_id=warning.id,
+        from_status="UNVERIFIED",
+        to_status="VERIFIED",
+        verified_by=current_user.id,
+        verified_at=warning.verified_at,
+        notes=request.notes if request else None,
+        source_bulletin_url=warning.source_bulletin_url,
+    )
+    db.add(audit_event)
     db.commit()
     db.refresh(warning)
 

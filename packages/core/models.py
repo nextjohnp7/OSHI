@@ -425,6 +425,50 @@ class OfficialWarning(Base):
     )
 
     event: Mapped["DisasterEvent | None"] = relationship(back_populates="warnings")
+    verification_events: Mapped[list["WarningVerificationEvent"]] = relationship(
+        back_populates="warning", cascade="all, delete-orphan"
+    )
+
+
+class WarningVerificationEvent(Base):
+    """Append-only audit event for warning verification transitions (Part 3.5).
+
+    Every transition (UNVERIFIED -> VERIFIED, re-verification attempts) is
+    recorded as a separate immutable row. Unlike verification_notes on the
+    warning record itself (which can be overwritten), this table is append-only
+    and provides a full history of who verified what, when, and with what
+    evidence/notes.
+    """
+
+    __tablename__ = "warning_verification_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    warning_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("official_warnings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    from_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    to_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    verified_by: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    verified_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_bulletin_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+
+    warning: Mapped["OfficialWarning"] = relationship(
+        back_populates="verification_events"
+    )
+    verifier: Mapped["User | None"] = relationship()
 
 
 class SituationReport(Base):

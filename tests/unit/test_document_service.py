@@ -166,6 +166,8 @@ def test_ingest_same_source_different_tenant_creates_separate_documents(svc, ses
     """Two tenants ingesting the same source_id must not overwrite each other."""
     user_a = uuid4()
     user_b = uuid4()
+    org_a = uuid4()
+    org_b = uuid4()
 
     doc_a = svc.ingest(
         text="Tenant A content.",
@@ -173,6 +175,7 @@ def test_ingest_same_source_different_tenant_creates_separate_documents(svc, ses
         source_id="doc-shared",
         title="Tenant A Doc",
         user_id=user_a,
+        organization_id=org_a,
     )
     doc_b = svc.ingest(
         text="Tenant B content.",
@@ -180,11 +183,14 @@ def test_ingest_same_source_different_tenant_creates_separate_documents(svc, ses
         source_id="doc-shared",
         title="Tenant B Doc",
         user_id=user_b,
+        organization_id=org_b,
     )
 
     assert doc_a.id != doc_b.id
     assert doc_a.user_id == user_a
     assert doc_b.user_id == user_b
+    assert doc_a.organization_id == org_a
+    assert doc_b.organization_id == org_b
     assert doc_a.title == "Tenant A Doc"
     assert doc_b.title == "Tenant B Doc"
 

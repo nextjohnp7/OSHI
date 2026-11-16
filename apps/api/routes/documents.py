@@ -10,7 +10,10 @@ from apps.api.schemas import (
     DocumentSearchResponse,
     TaskResponse,
 )
-from packages.core.auth import require_api_key, resolve_primary_organization
+from packages.core.auth import (
+    require_api_key,
+    get_organization_context,
+)
 from packages.core.tasks import task_store
 from packages.document_processing.service import DocumentService
 
@@ -24,6 +27,7 @@ async def ingest_document(
     request: DocumentIngestRequest,
     background_tasks: BackgroundTasks,
     current_user=Depends(require_api_key),
+    org_id=Depends(get_organization_context),
 ):
     """Import a document: chunk, embed, and store (background task).
 
@@ -31,9 +35,6 @@ async def ingest_document(
     replaces its chunks. Returns a task ID immediately; poll
     ``GET /api/v1/tasks/{task_id}`` for the result.
     """
-    # Ambil organization_id dengan resolusi yang lebih baik dari membership pertama.
-    org_id = resolve_primary_organization(current_user)
-
     task_id = task_store.create(
         task_type="ingest",
         user_id=current_user.id,
@@ -89,9 +90,10 @@ async def ingest_document(
 def list_documents(
     limit: int = Query(default=20, ge=1, le=100),
     current_user=Depends(require_api_key),
+    org_id=Depends(get_organization_context),
 ):
     """List imported documents."""
-    return service.list_documents(limit=limit, user_id=current_user.id)
+    return service.list_documents(limit=limit, organization_id=org_id)
 
 
 @router.get(
@@ -103,9 +105,10 @@ def list_documents(
 def get_document(
     document_id: str,
     current_user=Depends(require_api_key),
+    org_id=Depends(get_organization_context),
 ):
     """Get a single document by its internal UUID."""
-    document = service.get_document(document_id, user_id=current_user.id)
+    document = service.get_document(document_id, organization_id=org_id)
     if document is None:
         from fastapi import HTTPException
 
@@ -122,9 +125,10 @@ def get_document(
 def get_document_chunks(
     document_id: str,
     current_user=Depends(require_api_key),
+    org_id=Depends(get_organization_context),
 ):
     """Get all chunks of a document, ordered by chunk_index."""
-    chunks = service.get_document_chunks(document_id, user_id=current_user.id)
+    chunks = service.get_document_chunks(document_id, organization_id=org_id)
     return [
         DocumentChunkOut(
             id=c.id,
@@ -146,6 +150,7 @@ def get_document_chunks(
 def semantic_search(
     request: DocumentSearchRequest,
     current_user=Depends(require_api_key),
+    org_id=Depends(get_organization_context),
 ):
     """Semantic (vector) search across stored document chunks.
 
@@ -155,7 +160,7 @@ def semantic_search(
         query=request.q,
         top_k=request.top_k,
         source_name=request.source_name,
-        user_id=current_user.id,
+        organization_id=org_id,
     )
     return DocumentSearchResponse(
         query=request.q,

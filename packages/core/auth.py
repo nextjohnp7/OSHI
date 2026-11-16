@@ -169,6 +169,38 @@ def resolve_primary_organization(user: User) -> uuid.UUID | None:
     return user.memberships[0].organization_id
 
 
+def get_organization_context(
+    x_organization_id: str | None = Header(default=None, alias="X-Organization-ID"),
+    current_user=Depends(require_api_key),
+) -> uuid.UUID | None:
+    """Resolve the organization (tenant) for the current request.
+
+    Resolution order:
+    1. ``X-Organization-ID`` request header, validated against the user's
+       memberships (explicit tenant context from the caller).
+    2. ``resolve_primary_organization(current_user)`` as fallback.
+
+    Returns ``None`` when the user has no organization context. This makes
+    tenant scoping explicit instead of heuristically picking ``memberships[0]``.
+    """
+    if x_organization_id is not None:
+        try:
+            org_id = uuid.UUID(x_organization_id)
+        except (ValueError, AttributeError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid X-Organization-ID format.",
+            )
+        for m in current_user.memberships:
+            if m.organization_id == org_id:
+                return org_id
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not a member of the specified organization.",
+        )
+    return resolve_primary_organization(current_user)
+
+
 __all__ = [
     "hash_api_key",
     "key_prefix",
@@ -177,5 +209,6 @@ __all__ = [
     "require_api_key",
     "require_admin",
     "resolve_primary_organization",
+    "get_organization_context",
     "get_current_user",
 ]
