@@ -16,7 +16,7 @@ from sqlalchemy import create_engine, text
 
 from apps.api.main import create_app
 from packages.core.config import get_settings
-from packages.core.database import Base
+from packages.core.database import Base, reset_engine
 
 # Import all models so they are registered with Base.metadata.
 import packages.core.models  # noqa: F401
@@ -41,21 +41,27 @@ def _postgres_available() -> bool:
 pg_available = _postgres_available()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def pg_client() -> Generator[TestClient, None, None]:
-    """TestClient terhubung ke PostgreSQL + pgvector (skip jika tidak tersedia)."""
+    """TestClient terhubung ke PostgreSQL + pgvector (skip jika tidak tersedia).
+
+    Scope session agar bootstrap hanya dijalankan sekali per run CI; tanpa ini,
+    bootstrap dipanggil sekali per tes yang memakai fixture dan run kedua akan
+    mendapat 403 "Bootstrap already performed".
+    """
     if not pg_available:
         pytest.skip("PostgreSQL tidak tersedia — tes integrasi melewati")
 
     # Pastikan pengaturan di-refresh sebelum app dibuat.
     os.environ["DATABASE_URL"] = DATABASE_URL
     get_settings.cache_clear()
+    reset_engine()
 
     engine = create_engine(DATABASE_URL)
     # Buat semua tabel langsung (bypass Alembic untuk keandalan test).
     Base.metadata.create_all(engine)
 
-    # Coba pasang ekstensi pgvector (abaikan jika tidak tersedia).
+    # Pasang ekstensi pgvector jika tersedia (diabaikan jika tidak).
     try:
         with engine.connect() as conn:
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
@@ -70,8 +76,43 @@ def pg_client() -> Generator[TestClient, None, None]:
         "/api/v1/auth/bootstrap",
         params={"email": "tester@example.com", "name": "Tester"},
     )
-    assert bootstrap.status_code == 200, bootstrap.text
-    api_key = bootstrap.json()["api_key"]
+    if bootstrap.status_code == 200:
+        api_key = bootstrap.json()["api_key"]
+    elif bootstrap.status_code == 403:
+        # Bootstrap sudah dilakukan (state tersisa); buat user + API key baru
+        # langsung ke database sehingga tes masih memiliki kredensial yang valid.
+        import hashlib
+
+        from packages.core.database import get_session_local
+        from packages.core.models import APIKey, User
+
+        session_local = get_session_local()
+        db = session_local()
+        try:
+            user = User(
+                email="tester-fixture@example.com",
+                name="Tester Fixture",
+                is_active=True,
+            )
+            db.add(user)
+            db.flush()
+            key_hash = hashlib.sha256(b"fixture-secret-key").hexdigest()
+            db.add(
+                APIKey(
+                    name="fixture-key",
+                    key_hash=key_hash,
+                    key_prefix="fixture-secre",
+                    user_id=user.id,
+                    is_active=True,
+                )
+            )
+            db.commit()
+        finally:
+            db.close()
+        api_key = "fixture-secret-key"
+    else:
+        assert bootstrap.status_code == 200, bootstrap.text
+        api_key = bootstrap.json()["api_key"]  # unreachable, for type checkers
 
     yield client, api_key
 
