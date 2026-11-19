@@ -35,14 +35,11 @@ RUN useradd --create-home --shell /bin/bash oshi
 # Copy virtualenv from builder
 COPY --from=builder /app/.venv /app/.venv
 
-# Copy uv binary from builder stage
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
 # Copy application code
 COPY --chown=oshi:oshi apps/ /app/apps/
 COPY --chown=oshi:oshi packages/ /app/packages/
 COPY --chown=oshi:oshi alembic/ /app/alembic/
-COPY --chown=oshi:oshi pyproject.toml /app/pyproject.toml
+COPY --chown=oshi:oshi pyproject.toml uv.lock /app/
 
 # Install curl for health check
 RUN --mount=type=cache,target=/root/.cache/apt \
@@ -52,4 +49,4 @@ RUN --mount=type=cache,target=/root/.cache/apt \
 # Run migrations on startup, then launch the API
 USER oshi
 
-CMD ["sh", "-c", "/uv run alembic upgrade head && /uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "/app/.venv/bin/alembic upgrade head && /app/.venv/bin/uvicorn apps.api.main:app --host 0.0.0.0 --port 8000"]

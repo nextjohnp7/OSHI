@@ -172,17 +172,59 @@ def resolve_primary_organization(user: User) -> uuid.UUID | None:
 def get_organization_context(
     x_organization_id: str | None = Header(default=None, alias="X-Organization-ID"),
     current_user=Depends(require_api_key),
+    api_key: str | None = Depends(get_api_key),
+    db: Session = Depends(get_db),
 ) -> uuid.UUID | None:
     """Resolve the organization (tenant) for the current request.
 
     Resolution order:
-    1. ``X-Organization-ID`` request header, validated against the user's
+    1. If the API key is bound to an organization (APIKey.organization_id),
+       the key may only act on that organization. ``X-Organization-ID`` must
+       either match it or be absent (then the key's org is used).
+    2. ``X-Organization-ID`` request header, validated against the user's
        memberships (explicit tenant context from the caller).
-    2. ``resolve_primary_organization(current_user)`` as fallback.
+    3. ``resolve_primary_organization(current_user)`` as fallback.
 
     Returns ``None`` when the user has no organization context. This makes
     tenant scoping explicit instead of heuristically picking ``memberships[0]``.
     """
+    # 1. API key organization binding (strongest signal).
+    if api_key is not None:
+        prefix = key_prefix(api_key)
+        key_hash = hash_api_key(api_key)
+        candidates = (
+            db.execute(
+                select(APIKey).where(
+                    APIKey.key_prefix == prefix,
+                    APIKey.is_active == True,  # noqa: E712
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for candidate in candidates:
+            if secrets.compare_digest(candidate.key_hash, key_hash):
+                if candidate.organization_id is not None:
+                    if x_organization_id is not None:
+                        try:
+                            req_org = uuid.UUID(x_organization_id)
+                        except (ValueError, AttributeError):
+                            raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Invalid X-Organization-ID format.",
+                            )
+                        if req_org != candidate.organization_id:
+                            raise HTTPException(
+                                status_code=status.HTTP_403_FORBIDDEN,
+                                detail=(
+                                    "API key is bound to a different organization "
+                                    "than the requested X-Organization-ID."
+                                ),
+                            )
+                    return candidate.organization_id
+                break
+
+    # 2. X-Organization-ID request header, validated against memberships.
     if x_organization_id is not None:
         try:
             org_id = uuid.UUID(x_organization_id)
@@ -198,6 +240,7 @@ def get_organization_context(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User is not a member of the specified organization.",
         )
+    # 3. Fallback to primary organization resolution.
     return resolve_primary_organization(current_user)
 
 

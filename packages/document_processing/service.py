@@ -83,10 +83,9 @@ class DocumentService:
                 document.source_url = source_url
                 document.content_hash = content_hash
                 document.updated_at = datetime.now(timezone.utc)
-                if user_id is not None:
-                    document.user_id = user_id
-                if organization_id is not None:
-                    document.organization_id = organization_id
+                # Jangan overwrite user_id / organization_id pada dokumen yang
+                # sudah ada — provenance pembuat asli harus tetap tercatat.
+                # organization_id sudah sama karena dedup mencakupnya.
                 # Remove old chunks.
                 db.execute(
                     __import__("sqlalchemy")

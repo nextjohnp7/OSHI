@@ -5,7 +5,7 @@ services:
     image: ankane/pgvector:latest
     container_name: oshi_postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-oshi}
+      POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: oshi_prod
     ports:
@@ -13,7 +13,7 @@ services:
     volumes:
       - oshi_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-oshi} -d oshi_prod"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d oshi_prod"]
       interval: 5s
       timeout: 5s
       retries: 5
