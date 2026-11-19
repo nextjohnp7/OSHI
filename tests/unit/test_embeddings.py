@@ -1,4 +1,12 @@
-"""Unit tests for deterministic embeddings (no network, no ML)."""
+"""Unit tests for deterministic embeddings (no network, no ML).
+
+Uses the explicit hashing backend (OSHI_EMBEDDING_BACKEND=hashing) so tests
+run offline without sentence-transformers / torch installed.
+"""
+
+import os
+
+os.environ.setdefault("OSHI_EMBEDDING_BACKEND", "hashing")
 
 from packages.document_processing.embeddings import (
     DEFAULT_DIM,

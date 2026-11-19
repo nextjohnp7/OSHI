@@ -51,15 +51,50 @@ def rank_chunks_by_similarity(
 
 
 class PgVectorRetriever:
-    """Optional pgvector-backed retriever for PostgreSQL production deployments.
+    """pgvector-backed retriever for PostgreSQL production deployments.
 
     Requires the ``pgvector`` Python package and a PostgreSQL database with the
-    ``pgvector`` extension enabled. Falls back gracefully if unavailable.
+    ``pgvector`` extension enabled and an ``embedding_vector vector(384)``
+    column on ``document_chunks``. Falls back gracefully if unavailable.
     """
 
     def __init__(self, session: Any, table: str = "document_chunks") -> None:
         self.session = session
         self.table = table
+
+    @classmethod
+    def is_available(cls, session: Any) -> bool:
+        """Return True if pgvector extension + embedding_vector column exist."""
+        from sqlalchemy import text
+
+        try:
+            result = session.execute(
+                text("SELECT 1 FROM pg_extension WHERE extname = 'vector' LIMIT 1")
+            ).scalar_one_or_none()
+            if not result:
+                return False
+            result = session.execute(
+                text(
+                    "SELECT 1 FROM information_schema.columns "
+                    "WHERE table_name = :table AND column_name = 'embedding_vector' "
+                    "LIMIT 1"
+                ),
+                {"table": cls._table_name(session)},
+            ).scalar_one_or_none()
+            return bool(result)
+        except Exception:  # pragma: no cover - pgvector not available
+            return False
+
+    @staticmethod
+    def _table_name(session: Any) -> str:
+        """Best-effort table name from the session bind."""
+        try:
+            bind = session.get_bind()
+            if bind is not None:
+                return str(bind.dialect.name)
+        except Exception:
+            pass
+        return "document_chunks"
 
     async def search(
         self,
@@ -72,22 +107,17 @@ class PgVectorRetriever:
         Returns results sorted by similarity (descending), each augmented with
         a ``similarity`` key (1 - cosine distance).
         """
-        try:
-            from pgvector.sqlalchemy import Vector  # type: ignore  # noqa: F401
-        except ImportError:  # pragma: no cover - pgvector not installed
-            return []
-
         from sqlalchemy import text
 
         # pgvector stores embeddings as Vector type; cosine distance <=> returns
         # smaller values for more similar vectors. Similarity = 1 - distance.
         sql = f"""
-            SELECT id, document_id, chunk_index, text, embedding,
-                   1 - (embedding <=> :query) AS similarity
+            SELECT id, document_id, chunk_index, text, embedding_vector,
+                   1 - (embedding_vector <=> :query) AS similarity
             FROM {self.table}
-            WHERE embedding IS NOT NULL
+            WHERE embedding_vector IS NOT NULL
             {"AND document_id = :document_id" if document_id else ""}
-            ORDER BY embedding <=> :query
+            ORDER BY embedding_vector <=> :query
             LIMIT :top_k
         """
         params: dict[str, Any] = {
@@ -110,3 +140,26 @@ class PgVectorRetriever:
                 }
             )
         return rows
+
+    def search_sync(
+        self,
+        query_vector: list[float],
+        top_k: int = 5,
+        document_id: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """Synchronous wrapper around :meth:`search`."""
+        import asyncio
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Already inside an event loop (e.g. FastAPI async endpoint).
+                return asyncio.run_coroutine_threadsafe(
+                    self.search(query_vector, top_k=top_k, document_id=document_id),
+                    loop,
+                ).result()
+        except RuntimeError:
+            pass
+        return asyncio.run(
+            self.search(query_vector, top_k=top_k, document_id=document_id)
+        )

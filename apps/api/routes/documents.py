@@ -1,6 +1,6 @@
 """Document API routes (Sprint 3)."""
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from apps.api.schemas import (
     DocumentChunkOut,
@@ -14,6 +14,7 @@ from packages.core.auth import (
     require_api_key,
     get_organization_context,
 )
+from packages.core.celery_app import celery_app
 from packages.core.tasks import task_store
 from packages.document_processing.service import DocumentService
 
@@ -25,15 +26,17 @@ service = DocumentService()
 @router.post("/ingest", response_model=TaskResponse, status_code=202)
 async def ingest_document(
     request: DocumentIngestRequest,
-    background_tasks: BackgroundTasks,
     current_user=Depends(require_api_key),
     org_id=Depends(get_organization_context),
 ):
-    """Import a document: chunk, embed, and store (background task).
+    """Import a document: chunk, embed, and store (Celery background task).
 
-    Deduplicates by (source_name, source_id): re-ingesting the same source
-    replaces its chunks. Returns a task ID immediately; poll
+    Deduplicates by (source_name, source_id, organization_id): re-ingesting
+    the same source replaces its chunks. Returns a task ID immediately; poll
     ``GET /api/v1/tasks/{task_id}`` for the result.
+
+    The actual ingest runs in a Celery worker backed by Redis, so the job
+    survives API restarts and can be retried across workers.
     """
     task_id = task_store.create(
         task_type="ingest",
@@ -41,35 +44,23 @@ async def ingest_document(
         organization_id=org_id,
     )
 
-    async def _ingest() -> None:
-        try:
-            # Sanitasi input: hapus karakter kontrol kecuali whitespace umum.
-            clean_text = "".join(
-                ch for ch in request.text if ch == "\n" or ch == "\t" or ord(ch) >= 32
-            )
-            document = service.ingest(
-                text=clean_text,
-                source_name=request.source_name,
-                source_id=request.source_id,
-                title=request.title,
-                source_url=request.source_url,
-                chunk_size=request.chunk_size,
-                overlap=request.overlap,
-                user_id=current_user.id,
-                organization_id=org_id,
-            )
-            task_store.complete(
-                task_id, DocumentOut.model_validate(document).model_dump()
-            )
-        except Exception as exc:  # noqa: BLE001 — record failure in task store
-            task_store.fail(task_id, str(exc))
-
-    background_tasks.add_task(_ingest)
-    # NOTE: FastAPI BackgroundTasks run in-process and do NOT survive a
-    # process restart. For production multi-worker deployment, replace with a
-    # persistent task queue (e.g. Celery + Redis) so ingest jobs can be
-    # retried and recovered across workers. The TaskStore record persists in
-    # the database, but the in-flight background job is lost on restart.
+    celery_app.send_task(
+        "oshi.worker.ingest_document",
+        args=[
+            task_id,
+            request.text,
+            request.source_name,
+            request.source_id,
+            request.title,
+        ],
+        kwargs={
+            "source_url": request.source_url,
+            "chunk_size": request.chunk_size,
+            "overlap": request.overlap,
+            "user_id": str(current_user.id),
+            "organization_id": str(org_id) if org_id else None,
+        },
+    )
     task_record = task_store.get(task_id, user_id=current_user.id)
     if task_record is None:
         raise HTTPException(status_code=500, detail="Task record not found")

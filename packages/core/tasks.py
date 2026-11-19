@@ -32,9 +32,15 @@ class TaskStore:
         task_type: str = "ingest",
         user_id: uuid.UUID | None = None,
         organization_id: uuid.UUID | None = None,
+        task_id: uuid.UUID | None = None,
     ) -> str:
-        """Create a new pending task and return its ID."""
-        task_id = uuid.uuid4()
+        """Create a new pending task and return its ID.
+
+        If ``task_id`` is given, it is used as the task ID (useful when the
+        caller wants the task ID to match an external run ID, e.g. research).
+        """
+        if task_id is None:
+            task_id = uuid.uuid4()
         session_local = get_session_local()
         db = session_local()
         try:

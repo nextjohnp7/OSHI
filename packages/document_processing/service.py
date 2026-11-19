@@ -28,7 +28,10 @@ from packages.document_processing.embeddings import (
     embedding_to_blob,
 )
 from packages.document_processing.models import Document, DocumentChunk
-from packages.document_processing.retrieval import rank_chunks_by_similarity
+from packages.document_processing.retrieval import (
+    PgVectorRetriever,
+    rank_chunks_by_similarity,
+)
 from packages.core.database import get_session_local
 
 
@@ -111,11 +114,13 @@ class DocumentService:
                 chunk_texts = [c["text"] for c in chunks]
                 vectors = embed_texts(chunk_texts)
                 for i, (chunk, vector) in enumerate(zip(chunks, vectors, strict=False)):
+                    blob = embedding_to_blob(vector)
                     db_chunk = DocumentChunk(
                         document_id=document.id,
                         chunk_index=i,
                         text=chunk["text"],
-                        embedding=embedding_to_blob(vector),
+                        embedding=blob,
+                        embedding_vector=blob,
                     )
                     db.add(db_chunk)
 
@@ -162,6 +167,23 @@ class DocumentService:
 
             query_vector = embed_text(query)
 
+            # pgvector path: PostgreSQL-side cosine distance when the extension
+            # + embedding_vector column are available (production).
+            if PgVectorRetriever.is_available(db):
+                retriever = PgVectorRetriever(db)
+                ranked = retriever.search_sync(query_vector, top_k=top_k)
+                # Augment with document metadata from the ORM rows.
+                doc_by_id = {str(r.id): r for r in rows}
+                for r in ranked:
+                    doc = doc_by_id.get(r["document_id"])
+                    if doc is not None:
+                        r["document_title"] = doc.title
+                        r["document_source_name"] = doc.source_name
+                        r["document_source_id"] = doc.source_id
+                        r["document_source_url"] = doc.source_url
+                return ranked
+
+            # In-memory cosine path (dev / SQLite).
             chunks: list[dict[str, Any]] = []
             for row in rows:
                 document = row.document  # type: ignore[attr-defined]

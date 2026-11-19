@@ -86,8 +86,10 @@ class DocumentChunk(Base):
     """Text chunk of a document with its embedding vector.
 
     Embedding is stored as LargeBinary (numpy float32 bytes) for portability
-    across SQLite and PostgreSQL. Vector retrieval is computed in Python
-    (cosine similarity) until pgvector is available in production.
+    across SQLite and PostgreSQL. On PostgreSQL production deployments, an
+    additional ``embedding_vector vector(384)`` column (added via migration)
+    enables pgvector-powered retrieval; ``embedding`` remains for dev/SQLite
+    compatibility.
     """
 
     __tablename__ = "document_chunks"
@@ -106,6 +108,7 @@ class DocumentChunk(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    embedding_vector: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

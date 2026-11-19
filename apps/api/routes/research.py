@@ -7,8 +7,9 @@ Endpoints:
 
 from __future__ import annotations
 
+import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from apps.api.schemas import (
     ResearchEvidenceOut,
@@ -17,67 +18,54 @@ from apps.api.schemas import (
     ResearchRunResponse,
     TaskResponse,
 )
+from packages.core.celery_app import celery_app
 from packages.core.tasks import task_store
 from packages.core.auth import (
     require_api_key,
     get_organization_context,
 )
-from packages.agents.research.graph import run_research_agent
 
 router = APIRouter(prefix="/api/v1/research", tags=["research"])
-
-# In-memory store for research run results (dev only; replace with DB in prod)
-_research_runs: dict[str, dict] = {}
 
 
 @router.post("/run", response_model=TaskResponse, status_code=202)
 async def run_research(
     request: ResearchRunRequest,
-    background_tasks: BackgroundTasks,
     current_user=Depends(require_api_key),
     org_id=Depends(get_organization_context),
 ) -> TaskResponse:
-    """Run the research agent workflow (background task).
+    """Run the research agent workflow (Celery background task).
 
     Discovers publications from OpenAlex and Crossref, extracts evidence
     snippets, and generates a markdown research report. Returns a task ID
     immediately; poll ``GET /api/v1/tasks/{task_id}`` for the result.
+
+    The actual research runs in a Celery worker backed by Redis, so the job
+    survives API restarts and can be retried across workers.
     """
-    task_id = task_store.create(
+    run_id = str(uuid.uuid4())
+    task_store.create(
         task_type="research",
         user_id=current_user.id,
         organization_id=org_id,
+        task_id=uuid.UUID(run_id),
     )
 
-    async def _run() -> None:
-        try:
-            final_state = await run_research_agent(
-                query=request.query,
-                topic=request.topic,
-                crisis_context=request.crisis_context,
-                max_publications=request.max_publications,
-                max_evidence_per_publication=request.max_evidence_per_publication,
-            )
-            run_id = final_state.get("run_id", task_id)
-            _research_runs[run_id] = {
-                **final_state,
-                "user_id": str(current_user.id),
-            }
-            task_store.complete(task_id, final_state)
-        except Exception as exc:  # noqa: BLE001 — record failure in task store
-            task_store.fail(task_id, str(exc))
-
-    background_tasks.add_task(_run)
-    # NOTE: FastAPI BackgroundTasks run in-process and do NOT survive a
-    # process restart. For production multi-worker deployment, replace with a
-    # persistent task queue (e.g. Celery + Redis) so research jobs can be
-    # retried and recovered across workers. The TaskStore record persists in
-    # the database, but the in-flight background job is lost on restart.
-    task_record = task_store.get(task_id, user_id=current_user.id)
+    celery_app.send_task(
+        "oshi.worker.run_research",
+        args=[run_id, request.query],
+        kwargs={
+            "topic": request.topic,
+            "crisis_context": request.crisis_context,
+            "max_publications": request.max_publications,
+            "max_evidence_per_publication": request.max_evidence_per_publication,
+        },
+    )
+    task_record = task_store.get(run_id, user_id=current_user.id)
     if task_record is None:
         raise HTTPException(status_code=500, detail="Task record not found")
     return TaskResponse(
-        task_id=task_id,
+        task_id=run_id,
         status=task_record["status"],
         task_type=task_record["task_type"],
         created_at=task_record["created_at"],
@@ -96,13 +84,9 @@ async def get_research_run(
     current_user=Depends(require_api_key),
 ) -> ResearchRunResponse:
     """Get the result of a previously run research job."""
-    run = _research_runs.get(run_id)
+    run = task_store.get(run_id, user_id=current_user.id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
-    if run.get("user_id") != str(current_user.id):
-        raise HTTPException(
-            status_code=403, detail="Not authorized to view this research run"
-        )
 
     return ResearchRunResponse(
         run_id=run.get("run_id", run_id),

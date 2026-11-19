@@ -9,6 +9,11 @@ import os
 import tempfile
 from typing import Generator
 
+# Use the explicit hashing embedding backend for offline unit tests (no
+# sentence-transformers / torch download). Production uses sentence-transformers
+# via OSHI_EMBEDDING_BACKEND unset.
+os.environ.setdefault("OSHI_EMBEDDING_BACKEND", "hashing")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

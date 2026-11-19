@@ -1,25 +1,37 @@
-"""Embedding generation with optional sentence-transformers backend.
+"""Embedding generation with a required sentence-transformers backend.
 
-Tries to load ``sentence-transformers/all-MiniLM-L6-v2`` lazily on first use
-(384-dim, ~80 MB download). Falls back to the deterministic hashing trick if
-the model is not installed or cannot be loaded — no network, no torch required.
+Loads ``sentence-transformers/all-MiniLM-L6-v2`` (384-dim, ~80 MB) lazily on
+first use. Unlike the previous implementation, there is no silent fallback to
+the hashing trick: if the model cannot be loaded (missing dependency, no
+network at build time, etc.) ``embed_text`` / ``embed_texts`` raise
+``EmbeddingBackendUnavailable`` with a clear message. This guarantees the
+production backend is explicit and consistent between ingest and query.
 
-The public interface (``embed_text`` / ``embed_texts`` / ``embedding_to_blob`` /
-``blob_to_embedding`` / ``cosine_similarity``) is identical regardless of which
-backend is active, so the rest of the codebase does not need to change.
+A deterministic hashing-trick backend remains available *only* when
+``OSHI_EMBEDDING_BACKEND=hashing`` is set explicitly (dev/offline smoke tests
+only). It is never the default.
+
+The public interface (``embed_text`` / ``embed_texts`` /
+``embedding_to_blob`` / ``blob_to_embedding`` / ``cosine_similarity`` /
+``get_embedding_backend_info``) is stable regardless of backend.
 """
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
-DEFAULT_DIM = 128
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+DEFAULT_DIM = 384
 
 # Lazy-loaded heavy model.
 _heavy_model: Any = None
 _heavy_model_name: str | None = None
 _heavy_model_dim: int | None = None
+
+
+class EmbeddingBackendUnavailable(RuntimeError):
+    """Raised when the embedding backend cannot be used."""
 
 
 def set_heavy_model(model: Any, model_name: str, dim: int | None = None) -> None:
@@ -28,6 +40,39 @@ def set_heavy_model(model: Any, model_name: str, dim: int | None = None) -> None
     _heavy_model = model
     _heavy_model_name = model_name
     _heavy_model_dim = dim
+
+
+def get_embedding_backend_info() -> dict[str, Any]:
+    """Return the active embedding backend identity (model name + dimension).
+
+    Callers can compare this between ingest and query to guarantee the same
+    model is used on both sides.
+    """
+    return {
+        "backend": "sentence-transformers"
+        if _heavy_model is not None
+        else (
+            "hashing"
+            if os.environ.get("OSHI_EMBEDDING_BACKEND") == "hashing"
+            else "unavailable"
+        ),
+        "model_name": _heavy_model_name or DEFAULT_MODEL,
+        "dimension": _heavy_model_dim or DEFAULT_DIM,
+    }
+
+
+def _require_backend() -> None:
+    """Ensure an embedding backend is available; raise otherwise."""
+    if _heavy_model is not None:
+        return
+    if os.environ.get("OSHI_EMBEDDING_BACKEND") == "hashing":
+        return
+    raise EmbeddingBackendUnavailable(
+        "sentence-transformers model is not available and no explicit "
+        "backend was selected. Install sentence-transformers (it is in the "
+        "'prod' dependency group) or set OSHI_EMBEDDING_BACKEND=hashing for "
+        "dev/offline smoke tests only."
+    )
 
 
 def _load_sentence_transformers(model_name: str = DEFAULT_MODEL) -> Any:
@@ -91,9 +136,11 @@ def embed_text(
 ) -> list[float]:
     """Generate an embedding vector for a single text.
 
-    Uses sentence-transformers when available; falls back to the hashing trick.
+    Uses sentence-transformers when available; raises
+    ``EmbeddingBackendUnavailable`` otherwise (no silent hashing fallback).
     Returns a list of floats (unit-normalized).
     """
+    _require_backend()
     model = _load_sentence_transformers(model_name)
     if model is not None:
         vector = model.encode(
@@ -103,6 +150,7 @@ def embed_text(
         )
         return vector[0].tolist()
 
+    # Explicit hashing backend (dev only).
     return _hash_embed(text, dim=dim)
 
 
@@ -118,6 +166,7 @@ def embed_texts(
     if not texts:
         return []
 
+    _require_backend()
     model = _load_sentence_transformers(model_name)
     if model is not None:
         vectors = model.encode(
@@ -127,6 +176,7 @@ def embed_texts(
         )
         return [v.tolist() for v in vectors]
 
+    # Explicit hashing backend (dev only).
     return [_hash_embed(t, dim=dim) for t in texts]
 
 

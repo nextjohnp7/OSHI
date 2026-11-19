@@ -15,7 +15,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from apps.api.routes.research import _research_runs
+from packages.core.tasks import task_store
 from packages.core.auth import require_api_key
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
@@ -25,23 +25,25 @@ router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
     "/runs",
     response_model=list[dict[str, Any]],
     summary="List agent runs",
-    description="List research agent runs (in-memory store, dev only).",
+    description="List research agent runs owned by the authenticated user (Celery task store).",
 )
 def list_agent_runs(
     current_user=Depends(require_api_key),
 ) -> list[dict[str, Any]]:
-    """List research agent runs owned by the authenticated user (in-memory store, dev only)."""
+    """List research agent runs owned by the authenticated user."""
+    tasks = task_store.list_tasks(limit=1000, user_id=current_user.id)
     runs = []
-    for run_id, state in _research_runs.items():
-        if state.get("user_id") != str(current_user.id):
+    for t in tasks:
+        if t.get("task_type") != "research":
             continue
+        result = t.get("result") or {}
         runs.append(
             {
-                "run_id": run_id,
-                "status": state.get("status", "unknown"),
-                "query": state.get("query", ""),
-                "topic": state.get("topic", ""),
-                "created_at": state.get("created_at"),
+                "run_id": t["task_id"],
+                "status": t.get("status", "unknown"),
+                "query": result.get("query", ""),
+                "topic": result.get("topic", ""),
+                "created_at": t.get("created_at"),
             }
         )
     return runs
@@ -58,23 +60,20 @@ def get_agent_run(
     current_user=Depends(require_api_key),
 ) -> dict[str, Any]:
     """Get the status and result of a specific agent run owned by the authenticated user."""
-    run = _research_runs.get(run_id)
+    run = task_store.get(run_id, user_id=current_user.id)
     if run is None:
         raise HTTPException(status_code=404, detail="Agent run not found")
-    if run.get("user_id") != str(current_user.id):
-        raise HTTPException(
-            status_code=403, detail="Not authorized to view this agent run"
-        )
+    result = run.get("result") or {}
     return {
         "run_id": run_id,
         "status": run.get("status", "unknown"),
-        "query": run.get("query", ""),
-        "topic": run.get("topic", ""),
-        "crisis_context": run.get("crisis_context"),
-        "report": run.get("report"),
+        "query": result.get("query", ""),
+        "topic": result.get("topic", ""),
+        "crisis_context": result.get("crisis_context"),
+        "report": result.get("report"),
         "error": run.get("error"),
-        "publication_count": len(run.get("publications", [])),
-        "evidence_count": len(run.get("evidence", [])),
+        "publication_count": len(result.get("publications", [])),
+        "evidence_count": len(result.get("evidence", [])),
     }
 
 
