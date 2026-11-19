@@ -19,11 +19,13 @@ from apps.api.schemas import (
     TaskResponse,
 )
 from packages.core.celery_app import celery_app
+from packages.core.config import get_settings
 from packages.core.tasks import task_store
 from packages.core.auth import (
     require_api_key,
     get_organization_context,
 )
+from packages.worker.research_tasks import run_research_sync
 
 router = APIRouter(prefix="/api/v1/research", tags=["research"])
 
@@ -41,7 +43,8 @@ async def run_research(
     immediately; poll ``GET /api/v1/tasks/{task_id}`` for the result.
 
     The actual research runs in a Celery worker backed by Redis, so the job
-    survives API restarts and can be retried across workers.
+    survives API restarts and can be retried across workers. When
+    ``CELERY_EAGER=true`` (tests/dev without Redis), the task runs inline.
     """
     run_id = str(uuid.uuid4())
     task_store.create(
@@ -51,16 +54,27 @@ async def run_research(
         task_id=uuid.UUID(run_id),
     )
 
-    celery_app.send_task(
-        "oshi.worker.run_research",
-        args=[run_id, request.query],
-        kwargs={
-            "topic": request.topic,
-            "crisis_context": request.crisis_context,
-            "max_publications": request.max_publications,
-            "max_evidence_per_publication": request.max_evidence_per_publication,
-        },
-    )
+    settings = get_settings()
+    if settings.celery_eager:
+        run_research_sync(
+            task_id=run_id,
+            query=request.query,
+            topic=request.topic,
+            crisis_context=request.crisis_context,
+            max_publications=request.max_publications,
+            max_evidence_per_publication=request.max_evidence_per_publication,
+        )
+    else:
+        celery_app.send_task(
+            "oshi.worker.run_research",
+            args=[run_id, request.query],
+            kwargs={
+                "topic": request.topic,
+                "crisis_context": request.crisis_context,
+                "max_publications": request.max_publications,
+                "max_evidence_per_publication": request.max_evidence_per_publication,
+            },
+        )
     task_record = task_store.get(run_id, user_id=current_user.id)
     if task_record is None:
         raise HTTPException(status_code=500, detail="Task record not found")

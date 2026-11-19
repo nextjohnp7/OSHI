@@ -14,6 +14,10 @@ from typing import Generator
 # via OSHI_EMBEDDING_BACKEND unset.
 os.environ.setdefault("OSHI_EMBEDDING_BACKEND", "hashing")
 
+# Run Celery tasks inline (eager) so tests work without a Redis broker.
+# Production keeps CELERY_EAGER=false for durable queue durability.
+os.environ.setdefault("CELERY_EAGER", "true")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

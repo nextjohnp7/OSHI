@@ -15,8 +15,10 @@ from packages.core.auth import (
     get_organization_context,
 )
 from packages.core.celery_app import celery_app
+from packages.core.config import get_settings
 from packages.core.tasks import task_store
 from packages.document_processing.service import DocumentService
+from packages.worker.ingest_tasks import ingest_document_sync
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
@@ -36,7 +38,8 @@ async def ingest_document(
     ``GET /api/v1/tasks/{task_id}`` for the result.
 
     The actual ingest runs in a Celery worker backed by Redis, so the job
-    survives API restarts and can be retried across workers.
+    survives API restarts and can be retried across workers. When
+    ``CELERY_EAGER=true`` (tests/dev without Redis), the task runs inline.
     """
     task_id = task_store.create(
         task_type="ingest",
@@ -44,23 +47,38 @@ async def ingest_document(
         organization_id=org_id,
     )
 
-    celery_app.send_task(
-        "oshi.worker.ingest_document",
-        args=[
-            task_id,
-            request.text,
-            request.source_name,
-            request.source_id,
-            request.title,
-        ],
-        kwargs={
-            "source_url": request.source_url,
-            "chunk_size": request.chunk_size,
-            "overlap": request.overlap,
-            "user_id": str(current_user.id),
-            "organization_id": str(org_id) if org_id else None,
-        },
-    )
+    settings = get_settings()
+    if settings.celery_eager:
+        ingest_document_sync(
+            task_id=task_id,
+            text=request.text,
+            source_name=request.source_name,
+            source_id=request.source_id,
+            title=request.title,
+            source_url=request.source_url,
+            chunk_size=request.chunk_size,
+            overlap=request.overlap,
+            user_id=str(current_user.id),
+            organization_id=str(org_id) if org_id else None,
+        )
+    else:
+        celery_app.send_task(
+            "oshi.worker.ingest_document",
+            args=[
+                task_id,
+                request.text,
+                request.source_name,
+                request.source_id,
+                request.title,
+            ],
+            kwargs={
+                "source_url": request.source_url,
+                "chunk_size": request.chunk_size,
+                "overlap": request.overlap,
+                "user_id": str(current_user.id),
+                "organization_id": str(org_id) if org_id else None,
+            },
+        )
     task_record = task_store.get(task_id, user_id=current_user.id)
     if task_record is None:
         raise HTTPException(status_code=500, detail="Task record not found")

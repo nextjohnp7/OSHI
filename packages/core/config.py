@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/0"
 
+    # When True, Celery tasks run inline (eager) instead of via broker.
+    # Used in tests/dev without Redis; production keeps False for durability.
+    celery_eager: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

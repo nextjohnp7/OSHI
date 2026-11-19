@@ -85,7 +85,10 @@ def test_ingest_creates_task_and_completes(api_client):
     assert resp.status_code == 202, resp.text
     data = resp.json()
     assert "task_id" in data
-    assert data["status"] == "pending"
+    # Dalam eager mode (CELERY_EAGER=true, tanpa Redis) task selesai segera,
+    # sehingga status bisa "completed" sudah saat response. Dalam mode Celery
+    # asli (dengan Redis broker) status adalah "pending".
+    assert data["status"] in ("pending", "completed"), data
     assert data["task_type"] == "ingest"
 
     # Poll task status until completed (background task runs synchronously
