@@ -47,12 +47,30 @@ services:
     container_name: oshi_redis
     ports:
       - "6379:6379"
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    command: ["redis-server", "--save", "60 1", "--appendonly", "yes"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  worker:
+    build: .
+    container_name: oshi_worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@postgres:5432/oshi_prod
+      APP_NAME: OSHI
+      APP_ENV: production
+      DEBUG: "false"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    command: ["celery", "-A", "packages.core.celery_app.celery_app", "worker", "--loglevel=info"]
+    restart: unless-stopped
 
 volumes:
   oshi_postgres_data:

@@ -115,12 +115,17 @@ class DocumentService:
                 vectors = embed_texts(chunk_texts)
                 for i, (chunk, vector) in enumerate(zip(chunks, vectors, strict=False)):
                     blob = embedding_to_blob(vector)
+                    # pgvector column expects text input format '{v1,v2,...}';
+                    # LargeBinary `embedding` keeps raw bytes for dev/SQLite.
+                    embedding_vector_str = (
+                        "{" + ",".join(f"{v:.8f}" for v in vector) + "}"
+                    )
                     db_chunk = DocumentChunk(
                         document_id=document.id,
                         chunk_index=i,
                         text=chunk["text"],
                         embedding=blob,
-                        embedding_vector=blob,
+                        embedding_vector=embedding_vector_str,
                     )
                     db.add(db_chunk)
 

@@ -87,13 +87,7 @@ class PgVectorRetriever:
 
     @staticmethod
     def _table_name(session: Any) -> str:
-        """Best-effort table name from the session bind."""
-        try:
-            bind = session.get_bind()
-            if bind is not None:
-                return str(bind.dialect.name)
-        except Exception:
-            pass
+        """Table name used for pgvector column availability check."""
         return "document_chunks"
 
     async def search(

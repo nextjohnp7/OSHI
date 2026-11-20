@@ -40,7 +40,7 @@ None.
 
 ## Tests Executed
 
-- `uv run pytest tests/ -v` — **87 passed, 2 skipped, 0 failed** (PostgreSQL integration tests skip when no Docker/psql locally)
+- `uv run pytest tests/ -v` — **92 passed, 0 failed, 0 skipped** (PostgreSQL integration tests skip when no Docker/psql locally)
 
 ## Test Results
 
@@ -52,7 +52,7 @@ None.
 - test_chunking.py: 5 passed
 - test_embeddings.py: 12 passed
 - test_retrieval.py: 3 passed
-- test_document_service.py: 7 passed
+- test_document_service.py: 8 passed
 - test_research_agent.py: 4 passed
 - test_arxiv_connector.py: 5 passed
 - test_pubmed_connector.py: 5 passed
@@ -81,6 +81,13 @@ Live API verification:
 - ADR-0002: FastAPI as backend framework
 - ADR-0003: OpenAlex as first scientific publication connector
 - ADR-0004: Crossref as second scientific publication connector
+
+## P1 Production Readiness (commit 8960890, 89115fa)
+
+- **Durable queue**: Celery + Redis worker (`packages/core/celery_app.py`, `packages/worker/`), `routes/documents.py` & `routes/research.py` use `celery_app.send_task`; eager mode (`CELERY_EAGER=true`) for tests/dev without Redis.
+- **Explicit embedding backend**: `embed_text`/`embed_texts` raise `EmbeddingBackendUnavailable` without silent hashing fallback; `OSHI_EMBEDDING_BACKEND=hashing` opts into dev-only hashing; `get_embedding_backend_info()` exposes model identity.
+- **pgvector active retrieval**: `embedding_vector vector(384)` column via migration; `PgVectorRetriever` uses pgvector cosine distance; `is_available()` checks extension + column; `semantic_search` routes to pgvector in production, falls back to in-memory cosine for SQLite.
+- **Docker/CI**: Dockerfile installs `--group prod` (Celery, Redis, pgvector, sentence-transformers); CI uses `uv sync --dev --group prod` + Redis service container; `docker-compose.yml` adds Celery worker service + Redis persistence.
 
 ## Blockers
 
