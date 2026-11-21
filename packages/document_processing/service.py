@@ -20,6 +20,7 @@ from typing import Any
 import uuid
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from packages.document_processing.chunking import chunk_text
 from packages.document_processing.embeddings import (
@@ -72,12 +73,16 @@ class DocumentService:
         db = self._get_db()
         own_session = self._session is None
         try:
+            # Row lock on existing document prevents two concurrent ingest
+            # tasks for the same source from overwriting each other. nowait
+            # fails fast instead of blocking; the IntegrityError path below
+            # handles the concurrent-insert case.
             existing = db.execute(
                 select(Document).where(
                     Document.source_name == source_name,
                     Document.source_id == source_id,
                     Document.organization_id == organization_id,
-                )
+                ).with_for_update(nowait=True)
             ).scalar_one_or_none()
 
             if existing is not None:
@@ -107,7 +112,33 @@ class DocumentService:
                     organization_id=organization_id,
                 )
                 db.add(document)
-                db.flush()
+                try:
+                    db.flush()
+                except IntegrityError:
+                    # Concurrent transaction inserted the same source first.
+                    # Roll back and fall through to the update path using the
+                    # document created by the other transaction.
+                    db.rollback()
+                    existing = db.execute(
+                        select(Document).where(
+                            Document.source_name == source_name,
+                            Document.source_id == source_id,
+                            Document.organization_id == organization_id,
+                        )
+                    ).scalar_one_or_none()
+                    if existing is None:
+                        raise
+                    document = existing
+                    document.title = title
+                    document.source_url = source_url
+                    document.content_hash = content_hash
+                    document.updated_at = datetime.now(timezone.utc)
+                    db.execute(
+                        __import__("sqlalchemy")
+                        .delete(DocumentChunk)
+                        .where(DocumentChunk.document_id == document.id)
+                    )
+                    db.flush()
 
             chunks = chunk_text(text, chunk_size=chunk_size, overlap=overlap)
             if chunks:
