@@ -29,10 +29,18 @@ from packages.core.database import get_engine
 from packages.core.logging import configure_logging, get_logger
 from packages.core.middleware import RateLimitMiddleware, add_cors_middleware
 from packages.core.tasks import task_store
+from packages.document_processing.embeddings import (
+    ensure_backend_ready,
+    get_embedding_backend_info,
+)
 from sqlalchemy import text
 
 
 logger = get_logger(__name__)
+
+# Embedding backend readiness, probed once at startup.
+embedding_degraded = False
+embedding_info: dict = {}
 
 
 def create_app() -> FastAPI:
@@ -106,11 +114,15 @@ def create_app() -> FastAPI:
             pending_tasks = -1
 
         return {
-            "status": "ok" if db_ok else "degraded",
+            "status": "ok" if db_ok and not embedding_degraded else "degraded",
             "service": settings.app_name,
             "env": settings.app_env,
             "database": "connected" if db_ok else "disconnected",
             "database_error": db_error,
+            "embedding": {
+                "available": not embedding_degraded,
+                **embedding_info,
+            },
             "pending_tasks": pending_tasks,
         }
 
@@ -122,6 +134,17 @@ def create_app() -> FastAPI:
         @app.get("/", response_class=FileResponse)
         async def frontend_root():
             return FileResponse(str(web_dir / "index.html"))
+
+    # Probe embedding backend at startup. Degraded (not fatal) so the operator
+    # can still diagnose via /health; production should treat degraded as
+    # unready until sentence-transformers is installed and the model loads.
+    global embedding_degraded, embedding_info
+    embedding_info = get_embedding_backend_info()
+    try:
+        ensure_backend_ready()
+    except Exception as exc:  # noqa: BLE001 — report, do not block startup
+        embedding_degraded = True
+        logger.error("embedding backend unavailable at startup: %s", exc)
 
     return app
 

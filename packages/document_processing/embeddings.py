@@ -61,6 +61,28 @@ def get_embedding_backend_info() -> dict[str, Any]:
     }
 
 
+def backend_ready() -> bool:
+    """Return True if an embedding backend is usable right now.
+
+    sentence-transformers model loaded, or explicit hashing backend selected.
+    False means embed_text/embed_texts will raise EmbeddingBackendUnavailable.
+    """
+    if _heavy_model is not None:
+        return True
+    return os.environ.get("OSHI_EMBEDDING_BACKEND") == "hashing"
+
+
+def ensure_backend_ready() -> None:
+    """Ensure an embedding backend is available; raise otherwise.
+
+    Intended for application startup. In production (no OSHI_EMBEDDING_BACKEND)
+    this raises EmbeddingBackendUnavailable if the sentence-transformers model
+    cannot be loaded, so the operator knows immediately instead of discovering
+    it on the first ingest/query request.
+    """
+    _require_backend()
+
+
 def _require_backend() -> None:
     """Ensure an embedding backend is available; raise otherwise."""
     if _heavy_model is not None:

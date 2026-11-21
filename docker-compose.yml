@@ -8,8 +8,6 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: oshi_prod
-    ports:
-      - "5432:5432"
     volumes:
       - oshi_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -45,9 +43,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: oshi_redis
-    ports:
-      - "6379:6379"
     command: ["redis-server", "--save", "60 1", "--appendonly", "yes"]
+    volumes:
+      - oshi_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -74,3 +72,4 @@ services:
 
 volumes:
   oshi_postgres_data:
+  oshi_redis_data:
