@@ -29,8 +29,8 @@ services:
       APP_NAME: OSHI
       APP_ENV: production
       DEBUG: "false"
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/0
     ports:
       - "8000:8000"
     healthcheck:
@@ -43,11 +43,13 @@ services:
   redis:
     image: redis:7-alpine
     container_name: oshi_redis
-    command: ["redis-server", "--save", "60 1", "--appendonly", "yes"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--save", "60 1", "--appendonly", "yes"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - oshi_redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -65,9 +67,9 @@ services:
       APP_NAME: OSHI
       APP_ENV: production
       DEBUG: "false"
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-    command: ["celery", "-A", "packages.core.celery_app.celery_app", "worker", "--loglevel=info"]
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/0
+    command: ["sh", "-c", "/app/.venv/bin/alembic upgrade head && celery -A packages.core.celery_app.celery_app worker --loglevel=info"]
     restart: unless-stopped
 
 volumes:
