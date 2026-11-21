@@ -76,11 +76,39 @@ def ensure_backend_ready() -> None:
     """Ensure an embedding backend is available; raise otherwise.
 
     Intended for application startup. In production (no OSHI_EMBEDDING_BACKEND)
-    this raises EmbeddingBackendUnavailable if the sentence-transformers model
-    cannot be loaded, so the operator knows immediately instead of discovering
-    it on the first ingest/query request.
+    this loads the sentence-transformers model, encodes a small probe text,
+    and verifies the dimension matches DEFAULT_DIM. Raises
+    EmbeddingBackendUnavailable if anything fails, so the operator knows
+    immediately instead of discovering it on the first ingest/query request.
     """
-    _require_backend()
+    if _heavy_model is not None:
+        return
+    if os.environ.get("OSHI_EMBEDDING_BACKEND") == "hashing":
+        return
+    model = _load_sentence_transformers(DEFAULT_MODEL)
+    if model is None:
+        raise EmbeddingBackendUnavailable(
+            "sentence-transformers model could not be loaded at startup. "
+            "Install sentence-transformers (it is in the 'prod' dependency "
+            "group) or set OSHI_EMBEDDING_BACKEND=hashing for "
+            "dev/offline smoke tests only."
+        )
+    # Probe: encode a small text and verify dimension.
+    try:
+        vector = model.encode(
+            ["startup probe"],
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+        )[0]
+    except Exception as exc:  # noqa: BLE001 — report, do not block startup
+        raise EmbeddingBackendUnavailable(
+            f"sentence-transformers model failed startup probe: {exc}"
+        ) from exc
+    if len(vector) != DEFAULT_DIM:
+        raise EmbeddingBackendUnavailable(
+            f"sentence-transformers model returned dimension "
+            f"{len(vector)}, expected {DEFAULT_DIM}"
+        )
 
 
 def _require_backend() -> None:
