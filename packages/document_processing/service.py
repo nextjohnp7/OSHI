@@ -73,17 +73,13 @@ class DocumentService:
         db = self._get_db()
         own_session = self._session is None
         try:
-            # Row lock on existing document prevents two concurrent ingest
-            # tasks for the same source from overwriting each other. nowait
-            # fails fast instead of blocking; the IntegrityError path below
-            # handles the concurrent-insert case.
-            existing = db.execute(
-                select(Document).where(
-                    Document.source_name == source_name,
-                    Document.source_id == source_id,
-                    Document.organization_id == organization_id,
-                ).with_for_update(nowait=True)
-            ).scalar_one_or_none()
+            # Coba kunci dokumen yang sudah ada untuk mencegah dua task ingest
+            # bersamaan untuk sumber yang sama menimpa satu sama lain. nowait
+            # gagal cepat daripada memblokir; path IntegrityError di bawah
+            # menangani kasus insert bersamaan.
+            existing = self._lock_existing_document(
+                db, source_name, source_id, organization_id
+            )
 
             if existing is not None:
                 document = existing
@@ -94,13 +90,7 @@ class DocumentService:
                 # Jangan overwrite user_id / organization_id pada dokumen yang
                 # sudah ada — provenance pembuat asli harus tetap tercatat.
                 # organization_id sudah sama karena dedup mencakupnya.
-                # Remove old chunks.
-                db.execute(
-                    __import__("sqlalchemy")
-                    .delete(DocumentChunk)
-                    .where(DocumentChunk.document_id == document.id)
-                )
-                db.flush()
+                self._replace_chunks(db, document)
             else:
                 document = Document(
                     source_name=source_name,
@@ -115,17 +105,15 @@ class DocumentService:
                 try:
                     db.flush()
                 except IntegrityError:
-                    # Concurrent transaction inserted the same source first.
-                    # Roll back and fall through to the update path using the
-                    # document created by the other transaction.
+                    # Transaksi lain memasukkan sumber yang sama terlebih dahulu.
+                    # Roll back seluruh transaksi (termasuk lock yang sudah
+                    # diambil), lalu ambil ulang dokumen yang dibuat transaksi
+                    # tersebut dengan kunci baru sebelum melanjutkan ke path
+                    # update. Ini mencegah duplicate insert dan race condition.
                     db.rollback()
-                    existing = db.execute(
-                        select(Document).where(
-                            Document.source_name == source_name,
-                            Document.source_id == source_id,
-                            Document.organization_id == organization_id,
-                        )
-                    ).scalar_one_or_none()
+                    existing = self._lock_existing_document(
+                        db, source_name, source_id, organization_id
+                    )
                     if existing is None:
                         raise
                     document = existing
@@ -133,12 +121,7 @@ class DocumentService:
                     document.source_url = source_url
                     document.content_hash = content_hash
                     document.updated_at = datetime.now(timezone.utc)
-                    db.execute(
-                        __import__("sqlalchemy")
-                        .delete(DocumentChunk)
-                        .where(DocumentChunk.document_id == document.id)
-                    )
-                    db.flush()
+                    self._replace_chunks(db, document)
 
             chunks = chunk_text(text, chunk_size=chunk_size, overlap=overlap)
             if chunks:
@@ -169,6 +152,36 @@ class DocumentService:
         finally:
             if own_session:
                 db.close()
+
+    def _lock_existing_document(
+        self,
+        db,
+        source_name: str,
+        source_id: str,
+        organization_id: uuid.UUID | None,
+    ):
+        """Coba kunci dokumen yang ada dengan (source_name, source_id, org).
+
+        Menggunakan ``with_for_update(nowait=True)`` sehingga gagal cepat jika
+        transaksi lain telah mengunci baris. Mengembalikan dokumen yang terkunci
+        atau None jika belum ada.
+        """
+        return db.execute(
+            select(Document).where(
+                Document.source_name == source_name,
+                Document.source_id == source_id,
+                Document.organization_id == organization_id,
+            ).with_for_update(nowait=True)
+        ).scalar_one_or_none()
+
+    def _replace_chunks(self, db, document: Document) -> None:
+        """Hapus semua chunk lama dari dokumen (siap untuk chunk baru)."""
+        db.execute(
+            __import__("sqlalchemy")
+            .delete(DocumentChunk)
+            .where(DocumentChunk.document_id == document.id)
+        )
+        db.flush()
 
     def semantic_search(
         self,

@@ -20,6 +20,8 @@ services:
     build: .
     container_name: oshi_api
     depends_on:
+      migration:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -54,10 +56,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # Migration dijalankan sekali sebagai init-job sebelum API/worker start.
+  # Setiap replica worker/API tidak boleh menjalankan alembic secara paralel
+  # karena akan membuat lock contention terhadap tabel alembic_version.
+  migration:
+    build: .
+    container_name: oshi_migration
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@postgres:5432/oshi_prod
+    command: ["/app/.venv/bin/alembic", "upgrade", "head"]
+    restart: "no"
+
   worker:
     build: .
     container_name: oshi_worker
     depends_on:
+      migration:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -69,7 +87,7 @@ services:
       DEBUG: "false"
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/0
-    command: ["sh", "-c", "/app/.venv/bin/alembic upgrade head && celery -A packages.core.celery_app.celery_app worker --loglevel=info"]
+    command: ["celery", "-A", "packages.core.celery_app.celery_app", "worker", "--loglevel=info"]
     restart: unless-stopped
 
 volumes:

@@ -70,7 +70,21 @@ def ingest_document_sync(
         db.close()
 
 
-@celery_app.task(bind=True, name="oshi.worker.ingest_document")
+@celery_app.task(
+    bind=True,
+    name="oshi.worker.ingest_document",
+    # Idempotensi: task_id dikontrol oleh caller (API route membuat task_store
+    # entry sebelum mengirim ke Celery). Jika task dicoba ulang, task_store
+    # sudah memiliki entri dengan task_id yang sama dan worker hanya
+    # memperbarui statusnya via task_store.complete() / task_store.fail().
+    # Retry hanya untuk kesalahan sementara (DB timeout, Redis gangguan, dll).
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=5,
+    acks_late=True,
+)
 def ingest_document(
     self,
     task_id: str,
@@ -84,7 +98,12 @@ def ingest_document(
     user_id: str | None = None,
     organization_id: str | None = None,
 ) -> dict[str, Any]:
-    """Ingest a document in a Celery worker (survives API restart)."""
+    """Ingest a document in a Celery worker (survives API restart).
+
+    Idempotent: same (source_name, source_id, organization_id) re-ingest
+    updates the existing document instead of creating a duplicate, thanks to
+    the unique index on documents(source_name, source_id, organization_id).
+    """
     try:
         return ingest_document_sync(
             task_id=task_id,

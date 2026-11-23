@@ -40,7 +40,19 @@ def run_research_sync(
     return {"status": "completed", "run_id": run_id}
 
 
-@celery_app.task(bind=True, name="oshi.worker.run_research")
+@celery_app.task(
+    bind=True,
+    name="oshi.worker.run_research",
+    # Idempotensi: task_id (== run_id) dikontrol oleh caller. Jika task
+    # dicoba ulang, task_store sudah memiliki entri dengan task_id yang sama.
+    # Retry untuk kesalahan sementara (external API timeout, DB gangguan, dll).
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=5,
+    acks_late=True,
+)
 def run_research(
     self,
     task_id: str,

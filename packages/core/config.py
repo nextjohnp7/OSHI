@@ -41,6 +41,33 @@ class Settings(BaseSettings):
     # Used in tests/dev without Redis; production keeps False for durability.
     celery_eager: bool = False
 
+    # Redis TLS / managed service (production). Saat diatur True, klien Redis
+    # akan menggunakan koneksi TLS. Disarankan untuk Redis managed (AWS
+    # ElastiCache, Azure Cache for Redis, Redis Cloud) dengan network policy
+    # ketik dan secret manager untuk password.
+    redis_ssl: bool = False
+    redis_ssl_cert_reqs: str | None = None  # e.g. "required", "optional", "none"
+
+    # Redis password. Dalam production, nilai ini harus diambil dari secret
+    # manager, bukan dari environment file atau command line.
+    redis_password: str | None = None
+
+    @property
+    def broker_url_with_password(self) -> str:
+        """Bangun broker URL dengan password jika tersedia."""
+        if self.redis_password:
+            scheme = "rediss" if self.redis_ssl else "redis"
+            return f"{scheme}://:{self.redis_password}@localhost:6379/0"
+        return self.celery_broker_url
+
+    @property
+    def backend_url_with_password(self) -> str:
+        """Bangun backend URL dengan password jika tersedia."""
+        if self.redis_password:
+            scheme = "rediss" if self.redis_ssl else "redis"
+            return f"{scheme}://:{self.redis_password}@localhost:6379/0"
+        return self.celery_result_backend
+
 
 @lru_cache
 def get_settings() -> Settings:

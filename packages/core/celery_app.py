@@ -13,10 +13,12 @@ from packages.core.config import get_settings
 
 _settings = get_settings()
 
+# Gunakan URL yang sudah mengandung password (mis. dari CELERY_BROKER_URL
+# langsung), atau bangun dari redis_password jika hanya password saja yang diatur.
 celery_app = Celery(
     "oshi",
-    broker=_settings.celery_broker_url,
-    backend=_settings.celery_result_backend,
+    broker=_settings.broker_url_with_password,
+    backend=_settings.backend_url_with_password,
     include=[
         "packages.worker.ingest_tasks",
         "packages.worker.research_tasks",

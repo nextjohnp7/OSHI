@@ -126,6 +126,100 @@ def create_app() -> FastAPI:
             "pending_tasks": pending_tasks,
         }
 
+    @app.get("/health/live", response_model=dict)
+    def liveness():
+        """Liveness probe — proses masih hidup. Tidak memeriksa dependensi eksternal."""
+        return {
+            "status": "alive",
+            "service": settings.app_name,
+        }
+
+    @app.get("/health/ready", response_model=dict)
+    def readiness():
+        """Readiness probe — semua dependensi kritis siap melayani traffic.
+
+        Memeriksa database, Redis/Celery broker, dan backend embedding.
+        Kembalikan 503 jika salah satu dependensi tidak tersedia.
+        """
+        from fastapi import HTTPException
+
+        checks = {}
+        overall_ok = True
+
+        # 1. Database
+        db_ok = False
+        try:
+            engine = get_engine()
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            db_ok = True
+        except Exception as exc:  # noqa: BLE001
+            logger.error("readiness database failure: %s", exc)
+        checks["database"] = "connected" if db_ok else "disconnected"
+        if not db_ok:
+            overall_ok = False
+
+        # 2. Redis / Celery broker
+        redis_ok = False
+        try:
+            settings = get_settings()
+            broker_url = settings.celery_broker_url
+            # Coba buat koneksi socket sederhana ke Redis host:port.
+            from urllib.parse import urlparse
+
+            parsed = urlparse(broker_url)
+            host = parsed.hostname or "localhost"
+            port = parsed.port or 6379
+            password = parsed.password
+            import socket
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            redis_ok = result == 0
+        except Exception as exc:  # noqa: BLE001
+            logger.error("readiness redis failure: %s", exc)
+        checks["redis"] = "connected" if redis_ok else "disconnected"
+        if not redis_ok:
+            overall_ok = False
+
+        # 3. Embedding backend
+        embedding_available = not embedding_degraded
+        checks["embedding"] = (
+            "available" if embedding_available else "degraded"
+        )
+        if not embedding_available:
+            overall_ok = False
+
+        # 4. Pending task backlog (indikator worker)
+        pending_tasks = 0
+        try:
+            pending_tasks = sum(
+                1
+                for t in task_store.list_tasks(limit=1000)
+                if t["status"] == "pending"
+            )
+        except Exception:  # noqa: BLE001
+            pending_tasks = -1
+        checks["pending_tasks"] = pending_tasks
+
+        if not overall_ok:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "status": "not_ready",
+                    "service": settings.app_name,
+                    "checks": checks,
+                },
+            )
+
+        return {
+            "status": "ready",
+            "service": settings.app_name,
+            "checks": checks,
+        }
+
     # Serve frontend MVP
     web_dir = Path(__file__).resolve().parent.parent.parent / "web"
     if web_dir.exists():
