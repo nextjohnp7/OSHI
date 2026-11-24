@@ -191,6 +191,11 @@ def embed_text(
     Returns a list of floats (unit-normalized).
     """
     _require_backend()
+    # Jika backend hashing dipilih secara eksplisit, gunakan langsung tanpa
+    # mencoba memuat sentence-transformers (hindari download model di CI
+    # offline, dan hindari vektor model yang bukan dimensi DEFAULT_DIM).
+    if os.environ.get("OSHI_EMBEDDING_BACKEND") == "hashing":
+        return _hash_embed(text, dim=dim)
     model = _load_sentence_transformers(model_name)
     if model is not None:
         vector = model.encode(
@@ -200,7 +205,7 @@ def embed_text(
         )
         return vector[0].tolist()
 
-    # Explicit hashing backend (dev only).
+    # Fallback terakhir: hashing.
     return _hash_embed(text, dim=dim)
 
 
@@ -217,6 +222,10 @@ def embed_texts(
         return []
 
     _require_backend()
+    # Jika backend hashing dipilih secara eksplisit, gunakan langsung tanpa
+    # mencoba memuat sentence-transformers.
+    if os.environ.get("OSHI_EMBEDDING_BACKEND") == "hashing":
+        return [_hash_embed(t, dim=dim) for t in texts]
     model = _load_sentence_transformers(model_name)
     if model is not None:
         vectors = model.encode(
@@ -226,7 +235,7 @@ def embed_texts(
         )
         return [v.tolist() for v in vectors]
 
-    # Explicit hashing backend (dev only).
+    # Fallback terakhir: hashing.
     return [_hash_embed(t, dim=dim) for t in texts]
 
 

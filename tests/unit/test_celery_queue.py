@@ -82,7 +82,7 @@ def test_task_store_create_get_complete_fail(clean_task_store):
     assert record["error"] == "something went wrong"
 
 
-def test_task_store_idempotent_task_id(clean_task_store):
+def test_task_store_idempotent_task_id(client):
     """Task ID yang sama tidak boleh membuat entri duplikasi."""
     task_id = str(uuid.uuid4())
     task_store.create(
@@ -137,7 +137,7 @@ def test_ingest_document_sync_eager_mode(client):
     assert record["result"]["document_id"] == result["document_id"]
 
 
-def test_run_research_sync_eager_mode(clean_task_store):
+def test_run_research_sync_eager_mode(client):
     """Research task sync dalam mode eager harus menyelesaikan tanpa error."""
     task_id = str(uuid.uuid4())
 
