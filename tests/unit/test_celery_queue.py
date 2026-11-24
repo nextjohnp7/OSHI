@@ -42,7 +42,7 @@ def test_celery_app_configured():
     assert "oshi.worker.run_research" in task_names
 
 
-def test_task_store_create_get_complete_fail(clean_task_store):
+def test_task_store_create_get_complete_fail(client):
     """TaskStore lifecycle: create -> get -> complete/fail -> get."""
     task_id = str(uuid.uuid4())
 
