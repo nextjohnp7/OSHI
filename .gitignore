@@ -32,8 +32,8 @@ Thumbs.db
 .coverage
 htmlcov/
 
-# alembic
-alembic/versions
+# alembic (migration files are tracked in git)
+# alembic/versions
 
 # Build artifacts
 oshi.egg-info/
