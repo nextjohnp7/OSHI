@@ -26,6 +26,10 @@ from apps.api.main import create_app
 from packages.core.config import get_settings
 from packages.core.database import Base, reset_engine
 
+# Import document processing models so they are registered with Base
+# metadata before create_all() creates the test database tables.
+from packages.document_processing.models import Document, DocumentChunk  # noqa: F401
+
 
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:

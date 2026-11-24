@@ -38,8 +38,8 @@ def test_celery_app_configured():
     assert celery_app.conf.result_backend is not None
     # Tasks yang di-include harus terdaftar di celery_app.tasks setelah import.
     task_names = set(celery_app.tasks.keys())
-    assert any("ingest_tasks" in t for t in task_names)
-    assert any("research_tasks" in t for t in task_names)
+    assert "oshi.worker.ingest_document" in task_names
+    assert "oshi.worker.run_research" in task_names
 
 
 def test_task_store_create_get_complete_fail(clean_task_store):
@@ -70,7 +70,12 @@ def test_task_store_create_get_complete_fail(clean_task_store):
 
     # Fail (new task)
     task_id_fail = str(uuid.uuid4())
-    task_store.create(task_type="research", task_id=uuid.UUID(task_id_fail))
+    task_store.create(
+        task_type="research",
+        user_id=uuid.uuid4(),
+        organization_id=uuid.uuid4(),
+        task_id=uuid.UUID(task_id_fail),
+    )
     task_store.fail(task_id_fail, "something went wrong")
     record = task_store.get(task_id_fail)
     assert record["status"] == TaskStatus.FAILED
@@ -80,18 +85,28 @@ def test_task_store_create_get_complete_fail(clean_task_store):
 def test_task_store_idempotent_task_id(clean_task_store):
     """Task ID yang sama tidak boleh membuat entri duplikasi."""
     task_id = str(uuid.uuid4())
-    task_store.create(task_type="ingest", task_id=uuid.UUID(task_id))
+    task_store.create(
+        task_type="ingest",
+        user_id=uuid.uuid4(),
+        organization_id=uuid.uuid4(),
+        task_id=uuid.UUID(task_id),
+    )
     record1 = task_store.get(task_id)
     assert record1 is not None
 
     # Create ulang dengan task_id yang sama — harus mengembalikan ID yang sama
     # (TaskStore.create tidak raise, karena primary key task_id sudah ada;
     # dalam praktek API route hanya membuat entri sekali sebelum send_task).
-    created_id = task_store.create(task_type="ingest", task_id=uuid.UUID(task_id))
+    created_id = task_store.create(
+        task_type="ingest",
+        user_id=uuid.uuid4(),
+        organization_id=uuid.uuid4(),
+        task_id=uuid.UUID(task_id),
+    )
     assert created_id == task_id
 
 
-def test_ingest_document_sync_eager_mode(clean_task_store):
+def test_ingest_document_sync_eager_mode(client):
     """Ingest task sync dalam mode eager harus menghasilkan dokumen + chunk."""
     task_id = str(uuid.uuid4())
     user_id = uuid.uuid4()
@@ -128,6 +143,8 @@ def test_run_research_sync_eager_mode(clean_task_store):
 
     task_store.create(
         task_type="research",
+        user_id=uuid.uuid4(),
+        organization_id=uuid.uuid4(),
         task_id=uuid.UUID(task_id),
     )
 

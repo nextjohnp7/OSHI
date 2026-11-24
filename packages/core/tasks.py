@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from packages.core.database import get_session_local
 from packages.core.models import Task
@@ -53,6 +54,10 @@ class TaskStore:
             )
             db.add(task)
             db.commit()
+        except IntegrityError:
+            # task_id sudah ada (concurrent create dengan task_id yang sama).
+            # Rollback dan kembalikan task_id yang ada — idempotent.
+            db.rollback()
         finally:
             db.close()
         return str(task_id)
