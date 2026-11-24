@@ -61,7 +61,11 @@ def upgrade() -> None:
         sa.Column("document_id", sa.UUID(), nullable=False),
         sa.Column("chunk_index", sa.Integer(), nullable=False),
         sa.Column("text", sa.Text(), nullable=False),
-        sa.Column("embedding", sa.BLOB(), nullable=True),
+        sa.Column(
+            "embedding",
+            sa.BLOB().with_variant(sa.dialects.postgresql.BYTEA(), "postgresql"),
+            nullable=True,
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

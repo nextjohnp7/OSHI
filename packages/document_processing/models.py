@@ -17,7 +17,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.dialects.postgresql import BYTEA as PGBytea, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from packages.core.database import Base
@@ -107,7 +107,10 @@ class DocumentChunk(Base):
 
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    embedding: Mapped[bytes | None] = mapped_column(
+        LargeBinary().with_variant(PGBytea, "postgresql"),
+        nullable=True,
+    )
     embedding_vector: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
