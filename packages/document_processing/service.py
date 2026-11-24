@@ -167,11 +167,13 @@ class DocumentService:
         atau None jika belum ada.
         """
         return db.execute(
-            select(Document).where(
+            select(Document)
+            .where(
                 Document.source_name == source_name,
                 Document.source_id == source_id,
                 Document.organization_id == organization_id,
-            ).with_for_update(nowait=True)
+            )
+            .with_for_update(nowait=True)
         ).scalar_one_or_none()
 
     def _replace_chunks(self, db, document: Document) -> None:

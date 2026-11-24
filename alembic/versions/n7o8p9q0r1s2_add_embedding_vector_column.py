@@ -4,13 +4,14 @@ Revision ID: n7o8p9q0r1s2_add_embedding_vector_column
 Revises: m1n2o3p4q5r6_change_embedding_to_largebinary
 Create Date: 2026-11-19 00:00:00.000000
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'n7o8p9q0r1s2'
-down_revision: Union[str, None] = 'm1n2o3p4q5r6'
+revision: str = "n7o8p9q0r1s2"
+down_revision: Union[str, None] = "m1n2o3p4q5r6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -21,7 +22,9 @@ def upgrade() -> None:
     # pgvector/pgvector:pg15 image in CI/Compose). The column is nullable so
     # existing rows and SQLite dev databases are unaffected.
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-    op.execute("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS embedding_vector vector(384)")
+    op.execute(
+        "ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS embedding_vector vector(384)"
+    )
     # HNSW index for cosine-distance queries (pgvector production path).
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_document_chunks_embedding_vector "

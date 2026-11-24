@@ -19,7 +19,7 @@ import pytest
 from celery import Celery
 
 from packages.core.celery_app import celery_app
-from packages.core.tasks import TaskStatus, task_store
+from packages.core.tasks import TaskStatus, TransientError, task_store
 from packages.worker.ingest_tasks import ingest_document_sync
 from packages.worker.research_tasks import run_research_sync
 
@@ -36,9 +36,10 @@ def test_celery_app_configured():
     assert isinstance(celery_app, Celery)
     assert celery_app.conf.broker_url is not None
     assert celery_app.conf.result_backend is not None
-    included = set(celery_app.conf.task_include or [])
-    assert "packages.worker.ingest_tasks" in included
-    assert "packages.worker.research_tasks" in included
+    # Tasks yang di-include harus terdaftar di celery_app.tasks setelah import.
+    task_names = set(celery_app.tasks.keys())
+    assert any("ingest_tasks" in t for t in task_names)
+    assert any("research_tasks" in t for t in task_names)
 
 
 def test_task_store_create_get_complete_fail(clean_task_store):
@@ -86,9 +87,7 @@ def test_task_store_idempotent_task_id(clean_task_store):
     # Create ulang dengan task_id yang sama — harus mengembalikan ID yang sama
     # (TaskStore.create tidak raise, karena primary key task_id sudah ada;
     # dalam praktek API route hanya membuat entri sekali sebelum send_task).
-    created_id = task_store.create(
-        task_type="ingest", task_id=uuid.UUID(task_id)
-    )
+    created_id = task_store.create(task_type="ingest", task_id=uuid.UUID(task_id))
     assert created_id == task_id
 
 
@@ -155,9 +154,14 @@ def test_celery_task_autoretry_configured():
     assert ingest_task is not None
     assert research_task is not None
 
-    # autoretry_for harus mengandung Exception
-    assert Exception in ingest_task.autoretry_for
-    assert Exception in research_task.autoretry_for
+    # autoretry_for harus mengandung TransientError (hanya kesalahan sementara
+    # yang diretry; kesalahan permanen gagal cepat).
+    assert TransientError in ingest_task.autoretry_for
+    assert TransientError in research_task.autoretry_for
+
+    # Exception tidak boleh ada dalam autoretry_for (tidak diretry)
+    assert Exception not in ingest_task.autoretry_for
+    assert Exception not in research_task.autoretry_for
 
     # max_retries harus > 0
     assert ingest_task.max_retries > 0

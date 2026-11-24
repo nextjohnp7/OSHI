@@ -170,7 +170,6 @@ def create_app() -> FastAPI:
             parsed = urlparse(broker_url)
             host = parsed.hostname or "localhost"
             port = parsed.port or 6379
-            password = parsed.password
             import socket
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -186,9 +185,7 @@ def create_app() -> FastAPI:
 
         # 3. Embedding backend
         embedding_available = not embedding_degraded
-        checks["embedding"] = (
-            "available" if embedding_available else "degraded"
-        )
+        checks["embedding"] = "available" if embedding_available else "degraded"
         if not embedding_available:
             overall_ok = False
 
@@ -196,9 +193,7 @@ def create_app() -> FastAPI:
         pending_tasks = 0
         try:
             pending_tasks = sum(
-                1
-                for t in task_store.list_tasks(limit=1000)
-                if t["status"] == "pending"
+                1 for t in task_store.list_tasks(limit=1000) if t["status"] == "pending"
             )
         except Exception:  # noqa: BLE001
             pending_tasks = -1

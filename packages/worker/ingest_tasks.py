@@ -10,8 +10,11 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from redis.exceptions import RedisError
+from sqlalchemy.exc import DatabaseError, OperationalError
+
 from packages.core.celery_app import celery_app
-from packages.core.tasks import task_store
+from packages.core.tasks import TransientError, task_store
 from packages.document_processing.service import DocumentService
 
 
@@ -63,7 +66,23 @@ def ingest_document_sync(
             },
         )
         return {"status": "completed", "document_id": str(document.id)}
+    except TransientError:
+        # Sudah wrapped oleh caller, re-raise agar Celery retry.
+        raise
+    except (
+        OperationalError,
+        DatabaseError,
+        RedisError,
+        ConnectionError,
+        TimeoutError,
+        OSError,
+    ) as exc:
+        # Kesalahan sementara (DB timeout, Redis gangguan, konektor timeout)
+        # dibungkus sebagai TransientError agar Celery melakukan retry.
+        raise TransientError(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 — record failure in task store
+        # Kesalahan permanen (validasi, config, bug) — tidak diretry, gagal
+        # cepat dan catat ke task store.
         task_store.fail(task_id, str(exc))
         raise
     finally:
@@ -77,8 +96,10 @@ def ingest_document_sync(
     # entry sebelum mengirim ke Celery). Jika task dicoba ulang, task_store
     # sudah memiliki entri dengan task_id yang sama dan worker hanya
     # memperbarui statusnya via task_store.complete() / task_store.fail().
-    # Retry hanya untuk kesalahan sementara (DB timeout, Redis gangguan, dll).
-    autoretry_for=(Exception,),
+    # Retry hanya untuk kesalahan sementara (DB timeout, Redis gangguan,
+    # connector timeout). Kesalahan permanen (validasi, config, bug) tidak
+    # diretry -- gagal cepat.
+    autoretry_for=(TransientError,),
     retry_backoff=True,
     retry_backoff_max=600,
     retry_jitter=True,
@@ -117,6 +138,9 @@ def ingest_document(
             user_id=user_id,
             organization_id=organization_id,
         )
-    except Exception as exc:  # noqa: BLE001 — record failure in task store
-        task_store.fail(task_id, str(exc))
+    except TransientError:
+        # Celery retry untuk kesalahan sementara; jangan tandai FAILED di
+        # task store sebelum retry habis.
+        raise
+    except Exception:  # noqa: BLE001 — non-transient, sudah ditangani task_store.fail() di sync
         raise

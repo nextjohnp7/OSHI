@@ -195,6 +195,16 @@ class TaskStore:
 task_store = TaskStore()
 
 
+class TransientError(Exception):
+    """Raised for retryable transient failures (DB outage, connector timeout,
+    Redis glitch, etc.).
+
+    Non-transient errors (validation, configuration, code bugs) should NOT be
+    wrapped in TransientError -- they will not be retried by Celery and should
+    fail fast.
+    """
+
+
 def _json_safe(value: Any) -> Any:
     """Recursively convert uuid.UUID and datetime objects to str so the result is JSON-safe."""
     if isinstance(value, uuid.UUID):

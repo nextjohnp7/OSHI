@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     # Used in tests/dev without Redis; production keeps False for durability.
     celery_eager: bool = False
 
+    # Celery task modules to include (imported by worker on startup).
+    task_include: list[str] = [
+        "packages.worker.ingest_tasks",
+        "packages.worker.research_tasks",
+    ]
+
     # Redis TLS / managed service (production). Saat diatur True, klien Redis
     # akan menggunakan koneksi TLS. Disarankan untuk Redis managed (AWS
     # ElastiCache, Azure Cache for Redis, Redis Cloud) dengan network policy
