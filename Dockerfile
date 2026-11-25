@@ -18,7 +18,7 @@ COPY pyproject.toml uv.lock ./
 
 # Install production dependencies only (no dev/test)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --group prod
+    uv sync --no-dev --group prod
 
 # Runtime stage
 FROM python:3.11-slim AS runtime
